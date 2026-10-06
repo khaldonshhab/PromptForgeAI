@@ -1,0 +1,10 @@
+<resources>
+<color name="pf_bg">#050817</color>
+<color name="pf_panel">#0D1831</color>
+<color name="pf_panel2">#091228</color>
+<color name="pf_border">#25345A</color>
+<color name="pf_blue">#19BFFF</color>
+<color name="pf_purple">#7B4DFF</color>
+<color name="pf_white">#F6F8FF</color>
+<color name="pf_muted">#A9B4D0</color>
+</resources>
