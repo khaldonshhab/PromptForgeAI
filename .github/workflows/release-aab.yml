@@ -1,0 +1,48 @@
+name: Release PromptForge AAB
+on:
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Build unsigned AAB
+        run: gradle :app:bundleRelease --no-daemon
+      - name: Decode release keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: echo "$KS_B64" | base64 --decode > promptforge-release.jks
+      - name: Sign AAB
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' }}
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          jarsigner -keystore promptforge-release.jks -storepass "$KS_PASS" -keypass "$KEY_PASS" app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+      - name: Upload signed AAB
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptforge-release-signed-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+      - name: Upload unsigned AAB
+        if: ${{ secrets.ANDROID_KEYSTORE_B64 == '' || secrets.ANDROID_KEYSTORE_PASSWORD == '' || secrets.ANDROID_KEY_ALIAS == '' || secrets.ANDROID_KEY_PASSWORD == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptforge-release-unsigned-aab
+          path: app/build/outputs/bundle/release/app-release.aab
