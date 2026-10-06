@@ -33,12 +33,11 @@ jobs:
         run: echo "$KS_B64" | base64 --decode > promptforge-release.jks
       - name: Sign AAB
         if: ${{ env.HAS_KEYSTORE != '' && env.KS_PASS != '' && env.KEY_ALIAS != '' && env.KEY_PASS != '' }}
-        env:
-
         run: |
           jarsigner -keystore promptforge-release.jks -storepass "$KS_PASS" -keypass "$KEY_PASS" app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+
       - name: Upload signed AAB
-        if: ${{ secrets.ANDROID_KEYSTORE_B64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' }}
+        if: ${{ env.HAS_KEYSTORE != '' && env.KS_PASS != '' && env.KEY_ALIAS != '' && env.KEY_PASS != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: promptforge-release-signed-aab
