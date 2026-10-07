@@ -1,5 +1,18 @@
 import http from "node:http";\nimport crypto from "node:crypto";
-const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"";\nlet USERS=[];try{USERS=JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}\nconst b64u=x=>Buffer.from(x).toString("base64url");\nconst hash=x=>crypto.createHash("sha256").update(String(x)).digest("hex");\nfunction signToken(user,days=30){const exp=Math.floor(Date.now()/1000)+days*86400;const payload=b64u(JSON.stringify({u:user.username,p:!!user.premium,e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}\nfunction auth(token){if(!AUTH_SECRET||typeof token!=="string")return null;const a=token.split(".");if(a.length!==2)return null;const expected=crypto.createHmac("sha256",AUTH_SECRET).update(a[0]).digest("base64url");if(!crypto.timingSafeEqual(Buffer.from(a[1]),Buffer.from(expected)))return null;try{const p=JSON.parse(Buffer.from(a[0],"base64url").toString());return p.e>Date.now()/1000?p:null;}catch(e){return null;}}
+const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"";\nlet USERS=[];try{USERS=JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}\nconst b64u=x=>Buffer.from(x).toString("base64url");\nfunction passwordHash(password){
+ const salt=crypto.randomBytes(16);
+ const derived=crypto.scryptSync(String(password),salt,64,{N:131072,r:8,p:1,maxmem:256*1024*1024});
+ return "scrypt$131072$8$1$"+salt.toString("base64url")+"$"+derived.toString("base64url");
+}
+function verifyPassword(password,stored){
+ try{
+  const a=String(stored||"").split("$"); if(a.length!==6||a[0]!=="scrypt")return false;
+  const N=Number(a[1]),r=Number(a[2]),p=Number(a[3]);
+  const salt=Buffer.from(a[4],"base64url"),expected=Buffer.from(a[5],"base64url");
+  const actual=crypto.scryptSync(String(password),salt,expected.length,{N,r,p,maxmem:256*1024*1024});
+  return expected.length===actual.length&&crypto.timingSafeEqual(expected,actual);
+ }catch(e){return false;}
+}\nfunction signToken(user,days=30){const exp=Math.floor(Date.now()/1000)+days*86400;const payload=b64u(JSON.stringify({u:user.username,p:!!user.premium,e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}\nfunction auth(token){if(!AUTH_SECRET||typeof token!=="string")return null;const a=token.split(".");if(a.length!==2)return null;const expected=crypto.createHmac("sha256",AUTH_SECRET).update(a[0]).digest("base64url");const got=Buffer.from(a[1]);const exp=Buffer.from(expected);if(got.length!==exp.length||!crypto.timingSafeEqual(got,exp))return null;try{const p=JSON.parse(Buffer.from(a[0],"base64url").toString());return p.e>Date.now()/1000?p:null;}catch(e){return null;}}
 const PROFILES={
  ChatGPT:"chatgpt",Claude:"claude",Gemini:"gemini",Grok:"grok",Copilot:"copilot",DeepSeek:"deepseek","Le Chat":"lechat",Poe:"poe","Meta AI":"meta","NotebookLM":"notebook",
  Perplexity:"research",Elicit:"research",Consensus:"research",SciSpace:"research",
@@ -127,6 +140,6 @@ async function generate(x){
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
  if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
- if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&String(v.passwordHash||"")===hash(pass));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}\n if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}\n if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
