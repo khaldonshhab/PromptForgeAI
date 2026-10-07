@@ -6,7 +6,7 @@ Bilingual Android app for creating and improving prompts across a large AI-tool 
 - Target SDK: 36
 - Compile SDK: 36
 - Publishing format: Android App Bundle (AAB)
-- Google Play Billing subscriptions: `premium_monthly`, `premium_yearly`
+- Free app: no Google Play Billing and no in-app advertising.
 - Privacy policy: [PRIVACY.md](PRIVACY.md)
 - Google Play preparation: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 
@@ -27,15 +27,13 @@ Deploy the `backend/` folder to HTTPS and configure:
 - `AI_API_KEY`
 - `AI_MODEL`
 
-Buyer authentication environment variables:
+Owner admin/user authentication environment variables:
 - `PF_AUTH_SECRET` — long random secret used to sign login sessions.
-- `PF_USERS_JSON` — JSON array of operator-provisioned accounts, for example `[{"username":"buyer1","passwordHash":"SHA256_HASH","premium":true}]`. Store this as a server secret; never commit real credentials.
+- `PF_DATA_DIR` — persistent directory for `users.json`. The admin dashboard manages free user accounts.
 
 Then enter the HTTPS backend URL in the app Settings. Keep all provider API keys on the server.
 
-## Premium
-Create Google Play subscriptions:
-- `premium_monthly`
-- `premium_yearly`
+## Admin dashboard
+Open `/admin` on the deployed backend. Configure `PF_ADMIN_USER`, `PF_ADMIN_PASSWORD_HASH`, and `PF_AUTH_SECRET`. The dashboard can create, disable, enable, reset, and delete free user accounts.
 
 Do not put provider API keys, keystores, passwords, or `.env` files in the repository.
