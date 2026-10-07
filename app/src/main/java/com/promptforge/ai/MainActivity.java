@@ -294,11 +294,11 @@ public class MainActivity extends Activity {
         showRoot(scroll(r));
     }
 
-    private EditText editor(String hint,int minLines){
+    private EditText editor(String arHint,String enHint,int minLines){
         EditText e=new EditText(this);
         e.setTextColor(WHITE);
         e.setHintTextColor(MUTED);
-        e.setHint(bidi(hint));
+        e.setHint(bidi(tr(arHint,enHint)));
         e.setTextSize(16);
         e.setGravity(ar()?Gravity.TOP|Gravity.RIGHT:Gravity.TOP|Gravity.LEFT);
         e.setTextDirection(ar()?View.TEXT_DIRECTION_FIRST_STRONG:View.TEXT_DIRECTION_LTR);
@@ -311,7 +311,7 @@ public class MainActivity extends Activity {
     private void create(){
         LinearLayout r=column();
         titleBar(r,"إنشاء Prompt","Create Prompt");
-        EditText idea=editor("اكتب فكرتك هنا...","Describe your idea...".hashCode()==0?6:6);
+        EditText idea=editor("اكتب فكرتك هنا...","Describe your idea...",6);
         r.addView(idea,new LinearLayout.LayoutParams(-1,dp(180)));
         addGap(r,10);
 
@@ -423,7 +423,7 @@ public class MainActivity extends Activity {
     private void improve(){
         LinearLayout r=column();
         titleBar(r,"تحسين Prompt","Improve Prompt");
-        EditText input=editor("ألصق البرومبت هنا...","Paste your prompt...".hashCode()==0?8:8);
+        EditText input=editor("ألصق البرومبت هنا...","Paste your prompt...",8);
         r.addView(input,new LinearLayout.LayoutParams(-1,dp(210)));
         addGap(r,10);
         TextView b=button(tr("✦  تحسين البرومبت","✦  Improve Prompt"),true);
@@ -435,7 +435,7 @@ public class MainActivity extends Activity {
     private void platforms(){
         LinearLayout r=column();
         titleBar(r,"منصات الذكاء الاصطناعي","AI Platforms");
-        EditText q=editor("بحث عن منصة...","Search platforms...");
+        EditText q=editor("بحث عن منصة...","Search platforms...",1);
         q.setSingleLine(true);
         q.setGravity(ar()?Gravity.CENTER_VERTICAL|Gravity.RIGHT:Gravity.CENTER_VERTICAL|Gravity.LEFT);
         r.addView(q,new LinearLayout.LayoutParams(-1,dp(56)));
@@ -520,7 +520,7 @@ public class MainActivity extends Activity {
         TextView label=text(tr("رابط الخادم الاختياري","Optional backend URL"),15,WHITE,true);
         r.addView(label,new LinearLayout.LayoutParams(-1,dp(32)));
 
-        EditText url=editor("https://...","https://...");
+        EditText url=editor("https://...","https://...",1);
         url.setSingleLine(true);
         url.setText(s.get("backend_url",""));
         url.setGravity(ar()?Gravity.CENTER_VERTICAL|Gravity.RIGHT:Gravity.CENTER_VERTICAL|Gravity.LEFT);
