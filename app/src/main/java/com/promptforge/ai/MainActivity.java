@@ -236,7 +236,7 @@ public class MainActivity extends Activity {
             .setItems(new String[]{"العربية","English"},(d,w)->{
                 lang=w==0?"ar":"en";
                 s.lang(lang);
-                home();
+                loginScreen();
             }).show();
     }
 
@@ -268,8 +268,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(sub,new LinearLayout.LayoutParams(-1,dp(48)));
 
         addGap(r,12);
-        boolean logged=!s.accountUser().isEmpty();
-        
         addGap(r,10);
         r.addView(card("✦","إنشاء برومبت","Create Prompt","حوّل الفكرة إلى برومبت جاهز","Turn an idea into a ready prompt",v->create()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
@@ -280,8 +278,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(card("★","المحفوظات","Saved","البرومبتات التي حفظتها","Your saved prompts",v->listScreen("saved")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
-        addGap(r,10);
-        r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
 
         addGap(r,12);
 
