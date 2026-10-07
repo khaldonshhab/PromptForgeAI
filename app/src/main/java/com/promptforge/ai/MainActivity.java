@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
         s=new Storage(this);
         ps=PlatformRepository.all();
         billing=new BillingManager(this,s,new BillingManager.Listener(){
-            public void premium(boolean v){s.premium(v);}
+            public void premium(boolean v){s.billingPremium(v);}
             public void prices(String m,String y){mp=m;yp=y;}
             public void msg(String x){if(x!=null&&!x.isEmpty())toast(x);}
         });
@@ -288,7 +288,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
         r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
-        r.addView(card("♙",tr("حساب المشتري","Buyer Account"),"Buyer Account",tr(s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),tr(s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
+        r.addView(card("♙","حساب المشتري","Buyer Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
