@@ -542,6 +542,11 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         pm.setTextDirection(View.TEXT_DIRECTION_LTR);
         pm.setOnClickListener(v->premium());
         r.addView(pm,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,8);
+
+        TextView privacy=button(tr("سياسة الخصوصية","Privacy Policy"),false);
+        privacy.setOnClickListener(v->open("https://github.com/khaldonshhab/PromptForgeAI/blob/main/PRIVACY.md"));
+        r.addView(privacy,new LinearLayout.LayoutParams(-1,dp(58)));
 
         showRoot(scroll(r));
     }
