@@ -499,7 +499,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
     private void account(){
         LinearLayout r=column();
-        titleBar(r,tr("حساب المستخدم","User Account"),"Buyer Account");
+        titleBar(r,tr("حساب المستخدم","User Account"),"User Account");
         if(!s.accountUser().isEmpty()){
             r.addView(text(tr("مسجل الدخول باسم: ","Signed in as: ")+s.accountUser(),16,WHITE,true),new LinearLayout.LayoutParams(-1,dp(50)));
             addGap(r,8);
@@ -515,7 +515,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(56)));
         addGap(r,10);
         TextView login=button(tr("تسجيل الدخول","Sign in"),true);
-        login.setOnClickListener(v->{String base=s.get("backend_url","").trim();if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(j.optBoolean("premium",true));toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});
+        login.setOnClickListener(v->{String base=s.get("backend_url","").trim();if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(false);toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});
         r.addView(login,new LinearLayout.LayoutParams(-1,dp(58)));
         showRoot(scroll(r));
     }
