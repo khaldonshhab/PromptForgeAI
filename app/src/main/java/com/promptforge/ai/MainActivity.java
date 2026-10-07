@@ -520,6 +520,12 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
         TextView label=text(tr("رابط الخادم الاختياري","Optional backend URL"),15,WHITE,true);
         r.addView(label,new LinearLayout.LayoutParams(-1,dp(32)));
+        TextView disclosure=text(tr(
+            "عند تفعيل الخادم، يُرسل النص الذي تدخله فقط عند طلب التوليد إلى الخادم عبر اتصال HTTPS. راجع سياسة الخصوصية لمعرفة طريقة المعالجة.",
+            "When a backend is enabled, the text you submit is sent to that server only when you request generation over HTTPS. See the Privacy Policy for data handling details."
+        ),12,MUTED,false);
+        disclosure.setPadding(0,0,0,dp(8));
+        r.addView(disclosure,new LinearLayout.LayoutParams(-1,dp(60)));
 
         EditText url=editor("https://...","https://...",1);
         url.setSingleLine(true);
