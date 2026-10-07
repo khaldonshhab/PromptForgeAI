@@ -268,6 +268,11 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(sub,new LinearLayout.LayoutParams(-1,dp(48)));
 
         addGap(r,12);
+        boolean logged=!s.accountUser().isEmpty();
+        r.addView(card(logged?"●":"♙",logged?"حسابك: "+s.accountUser():"تسجيل الدخول","Account: "+(logged?s.accountUser():"Sign in"),
+            logged?"إدارة الحساب وتغيير كلمة المرور":"سجّل الدخول مباشرة من الواجهة",
+            logged?"Manage your account and password":"Sign in directly from the main screen",v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
+        addGap(r,10);
         r.addView(card("✦","إنشاء برومبت","Create Prompt","حوّل الفكرة إلى برومبت جاهز","Turn an idea into a ready prompt",v->create()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("✎","تحسين برومبت","Improve Prompt","حسّن أي برومبت موجود","Upgrade any existing prompt",v->improve()),new LinearLayout.LayoutParams(-1,dp(86)));
@@ -277,8 +282,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(card("★","المحفوظات","Saved","البرومبتات التي حفظتها","Your saved prompts",v->listScreen("saved")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
-        addGap(r,10);
-        r.addView(card("♙","حساب المستخدم","User Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
 
@@ -543,7 +546,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(l,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,12);
 
-        TextView label=text(tr("رابط الخادم الاختياري","Optional backend URL"),15,WHITE,true);
+        TextView label=text(tr("رابط الخادم","Backend URL"),15,WHITE,true);
         r.addView(label,new LinearLayout.LayoutParams(-1,dp(32)));
         TextView disclosure=text(tr(
             "عند تفعيل الخادم، يُرسل النص الذي تدخله فقط عند طلب التوليد إلى الخادم عبر اتصال HTTPS. راجع سياسة الخصوصية لمعرفة طريقة المعالجة.",
