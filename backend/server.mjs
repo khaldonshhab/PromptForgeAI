@@ -1,5 +1,5 @@
-import http from "node:http";
-const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"";
+import http from "node:http";\nimport crypto from "node:crypto";
+const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"";\nlet USERS=[];try{USERS=JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}\nconst b64u=x=>Buffer.from(x).toString("base64url");\nconst hash=x=>crypto.createHash("sha256").update(String(x)).digest("hex");\nfunction signToken(user,days=30){const exp=Math.floor(Date.now()/1000)+days*86400;const payload=b64u(JSON.stringify({u:user.username,p:!!user.premium,e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}\nfunction auth(token){if(!AUTH_SECRET||typeof token!=="string")return null;const a=token.split(".");if(a.length!==2)return null;const expected=crypto.createHmac("sha256",AUTH_SECRET).update(a[0]).digest("base64url");if(!crypto.timingSafeEqual(Buffer.from(a[1]),Buffer.from(expected)))return null;try{const p=JSON.parse(Buffer.from(a[0],"base64url").toString());return p.e>Date.now()/1000?p:null;}catch(e){return null;}}
 const PROFILES={
  ChatGPT:"chatgpt",Claude:"claude",Gemini:"gemini",Grok:"grok",Copilot:"copilot",DeepSeek:"deepseek","Le Chat":"lechat",Poe:"poe","Meta AI":"meta","NotebookLM":"notebook",
  Perplexity:"research",Elicit:"research",Consensus:"research",SciSpace:"research",
@@ -104,7 +104,7 @@ function body(req){return new Promise((resolve,reject)=>{let s="";req.on("data",
 function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
- if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
+ if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");\n const session=auth(x.token);
  const profile=profileFor(x.platform,x.task),lang=x.language==="ar"?"Arabic":"the user's requested language";
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
  const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\nPROFILE: "+profile+"\nLANGUAGE: "+lang+"\nNATIVE PROMPT RULES: "+rule+"\nNever mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
@@ -127,6 +127,6 @@ async function generate(x){
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
  if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&String(v.passwordHash||"")===hash(pass));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}\n if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
