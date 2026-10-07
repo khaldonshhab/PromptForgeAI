@@ -28,7 +28,8 @@ public class MainActivity extends Activity {
         s=new Storage(this);
         ps=PlatformRepository.all();
         lang=s.lang();
-        if(lang.isEmpty()) chooseLanguage(); else loginScreen();
+        if(lang.isEmpty()) { lang="ar"; s.lang(lang); }
+        loginScreen();
     }
 
     private boolean ar(){return "ar".equals(lang);}
@@ -540,7 +541,13 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 }
                 new RemotePromptClient().adminLogin(base,u,p,(adminOk,adminVal)->runOnUiThread(()->{
                     login.setEnabled(true);
-                    if(!adminOk){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));return;}
+                    if(!adminOk){
+                        String err=adminVal==null?"":adminVal.trim();
+                        if(err.contains("auth_not_configured")) toast(tr("الخادم غير مهيأ للمصادقة: راجع PF_AUTH_SECRET","Server authentication is not configured: check PF_AUTH_SECRET"));
+                        else if(err.contains("invalid_admin_credentials")) toast(tr("بيانات حساب الإدارة غير صحيحة","Invalid admin username or password"));
+                        else if(err.isEmpty()) toast(tr("تعذر الاتصال بالخادم","Could not reach the server"));
+                        else toast(tr("خطأ من الخادم: "+err,"Server error: "+err));
+                        return;}
                     try{org.json.JSONObject j=new org.json.JSONObject(adminVal);Intent i=new Intent(this,AdminActivity.class);i.putExtra("admin_token",j.optString("token",""));startActivity(i);}catch(Exception e){toast(tr("تعذر فتح لوحة الإدارة","Could not open admin panel"));}
                 }));
             }));
