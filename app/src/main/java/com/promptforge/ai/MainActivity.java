@@ -278,7 +278,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
-        r.addView(card("♙","حساب المشتري","Buyer Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
+        r.addView(card("♙","حساب المستخدم","User Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
@@ -499,7 +499,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
     private void account(){
         LinearLayout r=column();
-        titleBar(r,tr("حساب المشتري","Buyer Account"),"Buyer Account");
+        titleBar(r,tr("حساب المستخدم","User Account"),"Buyer Account");
         if(!s.accountUser().isEmpty()){
             r.addView(text(tr("مسجل الدخول باسم: ","Signed in as: ")+s.accountUser(),16,WHITE,true),new LinearLayout.LayoutParams(-1,dp(50)));
             addGap(r,8);
