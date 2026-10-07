@@ -367,8 +367,13 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
     private void generate(String idea){
         if(!s.consume()){
-            toast(tr("وصلت للحد المجاني اليومي. افتح Premium.","Daily free limit reached. Upgrade to Premium."));
-            premium();
+            new AlertDialog.Builder(this).setTitle(tr("انتهت الاستخدامات المجانية","Free uses reached"))
+                .setMessage(tr("يمكنك مشاهدة إعلان اختياري للحصول على استخدام إضافي، أو فتح Premium بدون إعلانات.","You can voluntarily watch an ad for one extra use, or upgrade to Premium without ads."))
+                .setPositiveButton(tr("مشاهدة إعلان","Watch ad"),(d,w)->{
+                    if(!ads.showRewardedForBonus(()->{s.bonus();runOnUiThread(()->generate(idea));}))
+                        toast(tr("الإعلان غير متاح حالياً","Rewarded ad is not available right now"));
+                })
+                .setNegativeButton("Premium",(d,w)->premium()).show();
             return;
         }
         String base=s.get("backend_url","").trim();
