@@ -135,16 +135,8 @@ async function generate(x){
  const session=auth(x.token);
  const profile=profileFor(x.platform,x.task),lang=x.language==="ar"?"Arabic":"the user's requested language";
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
- const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"
-PROFILE: "+profile+"
-LANGUAGE: "+lang+"
-NATIVE PROMPT RULES: "+rule+"
-Never mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
- const user="USER IDEA:
-"+x.idea+"
-
-TASK TYPE:
-"+(x.task||"General");
+ const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\\nPROFILE: "+profile+"\\nLANGUAGE: "+lang+"\\nNATIVE PROMPT RULES: "+rule+"\\nNever mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
+ const user="USER IDEA:\\n"+x.idea+"\\n\\nTASK TYPE:\\n"+(x.task||"General");
  let payload={model:AI_MODEL,instructions:system,input:user};
  if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  const r=await fetch(AI_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(payload)});
