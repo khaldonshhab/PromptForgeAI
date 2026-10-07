@@ -203,7 +203,7 @@ public class MainActivity extends Activity {
         TextView at=text("العربية",18,WHITE,true);
         at.setGravity(Gravity.CENTER);
         arRow.addView(at,new LinearLayout.LayoutParams(0,dp(56),1));
-        arRow.setOnClickListener(v->{lang="ar";s.lang(lang);home();});
+        arRow.setOnClickListener(v->{lang="ar";s.lang(lang);loginScreen();});
         r.addView(arRow,new LinearLayout.LayoutParams(-1,dp(62)));
 
         addGap(r,12);
@@ -218,7 +218,7 @@ public class MainActivity extends Activity {
         et.setGravity(Gravity.CENTER);
         et.setTextDirection(View.TEXT_DIRECTION_LTR);
         enRow.addView(et,new LinearLayout.LayoutParams(0,dp(56),1));
-        enRow.setOnClickListener(v->{lang="en";s.lang(lang);home();});
+        enRow.setOnClickListener(v->{lang="en";s.lang(lang);loginScreen();});
         r.addView(enRow,new LinearLayout.LayoutParams(-1,dp(62)));
 
         addGap(r,20);
