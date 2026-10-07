@@ -10,7 +10,6 @@ PromptForge AI may store the following locally on the user's device:
 - App language preference.
 - Generated prompt history.
 - Prompts the user explicitly saves.
-- Premium entitlement state used by the app.
 - An optional backend URL entered by the user.
 
 This local data is not intentionally uploaded by PromptForge AI unless the user uses a feature that sends text to a configured backend.
@@ -31,20 +30,14 @@ PromptForge AI is designed so that remote generation is user-initiated. Users sh
 
 Production backend deployments should use HTTPS. Server infrastructure, hosting providers, and AI providers may maintain technical logs according to their own policies and configurations.
 
-## 4. Advertising
+## 4. Advertising and payments
 
-Free users may see Google AdMob advertising. The app uses Google's consent and privacy tooling where required. Premium users with an active Google Play subscription or a valid buyer account are not shown the app's interstitial/rewarded ads. Ad behavior and personalization are subject to the user's consent choices and Google's policies.
+The Android application does not include AdMob advertising and does not use Google Play Billing. The app is free to use and has no in-app paid subscription.
 
-## 5. Payments and subscriptions
-
-Premium subscriptions are processed through Google Play Billing. PromptForge AI does not receive or store the user's payment card number.
-
-Google Play provides the app with purchase/subscription state needed to enable Premium features. Google may process payment and transaction information under Google's own terms and privacy policy.
-
-## 6. Third-party services
+## 5. Third-party services
 
 Depending on how the app is deployed and configured, data may be processed by:
-- Google Play / Google Play Billing for app distribution and subscriptions.
+- Google Play only if the app is distributed through Google Play.
 - The backend server configured by the user or operator.
 - The AI provider configured by that backend.
 
@@ -98,9 +91,8 @@ PromptForge AI هو تطبيق أندرويد لإنشاء وتحسين أوام
 - حالة Premium المستخدمة داخل التطبيق.
 - رابط الخادم الاختياري الذي يدخله المستخدم.
 
-### الإعلانات
-
-قد يرى المستخدم المجاني إعلانات Google AdMob. يستخدم التطبيق أدوات Google الخاصة بالموافقة والخصوصية عندما تكون مطلوبة. الحسابات المدفوعة/المشترون الذين لديهم اشتراك Premium أو حساب شراء صالح لا تظهر لهم إعلانات التطبيق.
+### الإعلانات والمدفوعات
+لا يحتوي التطبيق على إعلانات ولا يستخدم Google Play Billing، والتطبيق مجاني للاستخدام.
 
 ### إرسال البرومبتات إلى الخادم
 يمكن استخدام المحرك المحلي دون إرسال البيانات خارج الجهاز. عند ضبط رابط خادم واختيار التوليد عن بُعد، يرسل التطبيق النص الذي أدخله المستخدم لهذا الطلب إلى الخادم المحدد.
@@ -108,9 +100,6 @@ PromptForge AI هو تطبيق أندرويد لإنشاء وتحسين أوام
 قد يرسل الخادم النص بعد ذلك إلى مزود الذكاء الاصطناعي الذي تم ضبطه على الخادم. مفاتيح مزودي الذكاء الاصطناعي لا توضع داخل تطبيق أندرويد.
 
 يجب عدم إدخال كلمات المرور أو بيانات البطاقات أو مفاتيح الدخول أو المعلومات الحساسة جداً داخل البرومبتات إلا عند فهم المخاطر والحاجة المشروعة لذلك.
-
-### الاشتراكات
-تتم عمليات Premium عبر Google Play Billing. لا يحصل التطبيق على رقم بطاقة الدفع ولا يخزنه.
 
 ### الاحتفاظ والحذف
 يتم تخزين السجل والمحفوظات محلياً، ويمكن حذفها عبر مسح بيانات التطبيق أو إلغاء تثبيته. التطبيق لا ينشئ حساب مستخدم في نسخته الحالية.
