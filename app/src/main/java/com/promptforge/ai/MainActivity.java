@@ -13,7 +13,8 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     private Storage s;
-    private BillingManager billing;\n    private AdManager ads;
+    private BillingManager billing;
+    private AdManager ads;
     private List<Platform> ps;
     private String lang="", sel="ChatGPT", task="General", last="", mp="—", yp="—";
 
@@ -285,7 +286,9 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
-        r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));\n        addGap(r,10);\n        r.addView(card("♙",tr("حساب المشتري","Buyer Account"),"Buyer Account",tr(s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),tr(s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
+        r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));
+        addGap(r,10);
+        r.addView(card("♙",tr("حساب المشتري","Buyer Account"),"Buyer Account",tr(s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),tr(s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
