@@ -281,8 +281,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(card("♙","حساب المستخدم","User Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
-        addGap(r,10);
-        r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
+
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
@@ -506,6 +505,17 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         titleBar(r,tr("حساب المستخدم","User Account"),"User Account");
         if(!s.accountUser().isEmpty()){
             r.addView(text(tr("مسجل الدخول باسم: ","Signed in as: ")+s.accountUser(),16,WHITE,true),new LinearLayout.LayoutParams(-1,dp(50)));
+            addGap(r,8);
+            TextView change=button(tr("تغيير كلمة المرور","Change password"),true);
+            change.setOnClickListener(v->{
+                EditText np=editor("كلمة المرور الجديدة (8 أحرف على الأقل)","New password (8+ characters)",1); np.setSingleLine(true); np.setInputType(0x00000081);
+                new AlertDialog.Builder(this).setTitle(tr("تعديل الحساب","Edit account")).setView(np).setPositiveButton(tr("حفظ","Save"),(d,w)->{
+                    String pass=np.getText().toString(); if(pass.length()<8){toast(tr("كلمة المرور يجب أن تكون 8 أحرف على الأقل","Password must be at least 8 characters"));return;}
+                    String base="https://promptforge-backend-2p4q.onrender.com"; change.setEnabled(false);
+                    new RemotePromptClient().updatePassword(base,s.accountToken(),pass,(ok,val)->runOnUiThread(()->{change.setEnabled(true);if(!ok){toast(tr("تعذر تعديل الحساب","Could not update account"));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",s.accountUser()),j.optString("token",s.accountToken()));toast(tr("تم تعديل كلمة المرور","Password updated"));}catch(Exception e){toast(tr("تم التعديل","Updated"));}}));
+                }).setNegativeButton(tr("إلغاء","Cancel"),null).show();
+            });
+            r.addView(change,new LinearLayout.LayoutParams(-1,dp(58)));
             addGap(r,8);
             TextView out=button(tr("تسجيل الخروج","Log out"),false);
             out.setOnClickListener(v->{s.logout();toast(tr("تم تسجيل الخروج","Logged out"));home();});
