@@ -163,12 +163,19 @@ public final class PromptEngine {
                 "\nTask: "+t;
         if ("Ideogram".equals(n)) return (ar?"أنشئ Prompt لـ Ideogram للفكرة التالية: ":"Create an Ideogram prompt for: ")+x+
                 (ar?". ركّز على التكوين والنص داخل الصورة عند وجوده، واكتب النص المطلوب حرفياً.":" Focus on composition and any text inside the image; preserve required text exactly.");
+        if ("Adobe Firefly".equals(n)) return (ar?"اكتب موجزاً بصرياً أصلياً لـ Adobe Firefly: ":"Create a native Adobe Firefly visual brief: ")+x+"\n"+(ar?"الموضوع، التكوين، الخلفية، الأسلوب، الإضاءة، الألوان، والاستخدام النهائي. لا تستخدم صيغة Midjourney أو Stable Diffusion.":"Subject, composition, background, style, lighting, colors and intended use. Do not use Midjourney or Stable Diffusion syntax.");
+        if ("Leonardo AI".equals(n)) return (ar?"أنشئ Prompt متخصصاً لـ Leonardo AI: ":"Create a Leonardo AI prompt: ")+x+"\n"+(ar?"حدّد الموضوع والتكوين والأسلوب والإضاءة والخامة والتفاصيل ومستوى الواقعية، من دون اختراع معاملات غير معروفة.":"Specify subject, composition, style, lighting, materials, detail and realism without inventing unsupported parameters.");
+        if ("FLUX".equals(n)) return (ar?"أنشئ Prompt طبيعي ومكثف لـ FLUX: ":"Create a concise natural-language FLUX prompt: ")+x+"\n"+(ar?"ركّز على وصف بصري واضح، التكوين، الإضاءة، الأسلوب والنص داخل الصورة عند الحاجة، بلا أعلام منصات أخرى.":"Focus on clear visual description, composition, lighting, style and exact text when needed, with no foreign platform flags.");
+        if ("Krea".equals(n)) return (ar?"أنشئ Prompt لـ Krea يحدد هدف التوليد أو التعديل، الصورة المرجعية إن وجدت، التكوين والأسلوب والتحويل المطلوب: ":"Create a Krea prompt specifying generation/edit intent, reference image if any, composition, style and desired transformation: ")+x;
+        if ("Magnific".equals(n)) return (ar?"حوّل الفكرة إلى تعليمات تحسين صورة لـ Magnific، مع التركيز على استعادة التفاصيل والخامة والوضوح والواقعية، وليس توليد مشهد جديد: ":"Turn this into a Magnific image-enhancement instruction focused on detail recovery, texture, clarity and realism rather than inventing a new scene: ")+x;
+        if ("Photoroom".equals(n)) return (ar?"أنشئ موجزاً لـ Photoroom لصور المنتجات: ":"Create a Photoroom product-image brief: ")+x+"\n"+(ar?"حدّد المنتج، الخلفية، الإضاءة، التكوين والاستخدام التجاري، وحافظ على هوية المنتج.":"Specify product, background, lighting, composition and commercial use while preserving product identity.");
+        if ("Looka".equals(n)) return (ar?"أنشئ موجز هوية بصرية لـ Looka: ":"Create a Looka brand-identity brief: ")+x+"\n"+(ar?"حدد اسم العلامة، المجال، الجمهور، الشخصية، فكرة الشعار، الرمز، الخطوط وسياق الاستخدام.":"Specify brand name, industry, audience, personality, logo concept, symbol, typography and use context.");
         return (ar?"أنشئ Prompt صورة متخصصاً لـ "+n+": ":"Create a platform-specific image prompt for "+n+": ")+x+
                 (ar?". حدّد الموضوع والبيئة والتكوين والإضاءة والألوان والخامات والمنظور والأسلوب، ولا تستخدم معاملات منصة أخرى.":" Include subject, environment, composition, lighting, palette, materials, perspective and style; do not import syntax from another platform.");
     }
 
     private static String video(String x,String n,String t,boolean ar){
-        String focus="Runway".equals(n)?"shot design and camera motion":"Google Veo".equals(n)?"cinematic realism and temporal continuity":"Kling AI".equals(n)?"subject consistency and controlled motion":"Pika".equals(n)?"action/effect clarity and timing":"Luma Dream Machine".equals(n)?"cinematic camera movement and natural motion":"Vidu".equals(n)?"character consistency and controlled motion":"LTX Studio".equals(n)?"shot planning and continuity":"motion, camera and temporal order";
+        String focus="Runway".equals(n)?"image-to-video motion, shot design and camera movement":"Google Veo".equals(n)?"realistic physics, cinematic continuity and temporal coherence":"Kling AI".equals(n)?"subject identity, controlled motion and physical interaction":"Pika".equals(n)?"action/effect clarity, transformation and timing":"Luma Dream Machine".equals(n)?"cinematic camera movement and natural motion":"Vidu".equals(n)?"character consistency and controlled motion":"LTX Studio".equals(n)?"shot planning, transitions and continuity":"Haiper".equals(n)?"clear subject motion and camera direction":"PixVerse".equals(n)?"motion effects, subject consistency and timing":"motion, camera and temporal order";
         return (ar?"أنشئ Prompt فيديو أصلياً لـ ":"Create a native video prompt for ")+n+"."+
                 "\n"+(ar?"الفكرة: ":"Idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+
                 "\n"+(ar?"تركيز المنصة: ":"Platform focus: ")+focus+
@@ -176,15 +183,11 @@ public final class PromptEngine {
     }
 
     private static String voice(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt صوت/TTS مخصصاً لـ ":"Create a native voice/TTS prompt for ")+n+
-                (ar?":\nالنص/الفكرة: ":"\nText/idea: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد هوية الصوت، العمر التقريبي، النبرة، السرعة، الإيقاع، العاطفة، النطق، والتوجيه الأدائي.":"\nSpecify voice identity, approximate age, tone, pace, rhythm, emotion, pronunciation and delivery direction.");
+        String focus="ElevenLabs".equals(n)?"voice identity, emotion, pacing, pronunciation and pauses":"PlayHT".equals(n)?"voice style, delivery, pacing and pronunciation":"Cartesia".equals(n)?"voice character, prosody and emotional state":"Murf".equals(n)?"narration role, audience, emphasis and delivery":"Speechify".equals(n)?"reading style, pacing and pronunciation":"voice identity, age, tone, pace, rhythm, emotion and pronunciation";\n        return (ar?"أنشئ Prompt صوت/TTS مخصصاً لـ ":"Create a native voice/TTS prompt for ")+n+"."+"\n"+(ar?"النص/الفكرة: ":"Text/idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+"\n"+(ar?"تركيز الأداة: ":"Tool focus: ")+focus+"\n"+(ar?"افصل النص المنطوق عن تعليمات الأداء، ولا تستخدم صيغة أداة صوت أخرى.":"Keep spoken text separate from delivery direction and do not import syntax from another voice tool.");
     }
 
     private static String music(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt موسيقى أصلياً لـ ":"Create a native music prompt for ")+n+
-                (ar?":\nالفكرة: ":"\nIdea: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد النوع والمزاج والسرعة والآلات والبنية والصوت والإنتاج. افصل الكلمات عن وصف الأسلوب إذا كانت مطلوبة.":"\nSpecify genre, mood, tempo, instrumentation, structure, vocal character and production. Separate lyrics from style direction when needed.");
+        String focus="Suno".equals(n)?"genre/style, mood, tempo, instrumentation, vocal character and lyrics":"Udio".equals(n)?"compact genre/mood/instrument tags plus separate lyrics/guidance":"Stable Audio".equals(n)?"audio event, texture, instrumentation, structure and duration":"genre, mood, tempo, instrumentation, structure, vocals and production";\n        return (ar?"أنشئ Prompt موسيقى أصلياً لـ ":"Create a native music prompt for ")+n+"."+"\n"+(ar?"الفكرة: ":"Idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+"\n"+(ar?"تركيز الأداة: ":"Tool focus: ")+focus+"\n"+(ar?"افصل الكلمات عن وصف الأسلوب عند الحاجة ولا تستخدم صيغة منصة موسيقية أخرى.":"Separate lyrics from style direction when needed and do not import syntax from another music platform.");
     }
 
     private static String coding(String x,String n,String t,boolean ar){
