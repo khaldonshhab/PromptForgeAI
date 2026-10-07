@@ -281,6 +281,8 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(card("♙","حساب المستخدم","User Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
+        addGap(r,10);
+        r.addView(card("⚙","لوحة الإدارة","Admin Panel","إدارة حسابات المستخدمين","Manage user accounts",v->startActivity(new Intent(this,AdminActivity.class))),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
