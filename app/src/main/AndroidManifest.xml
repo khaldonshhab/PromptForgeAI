@@ -8,5 +8,6 @@
             </intent-filter>
         </activity>
             <activity android:name=".AdminActivity" android:screenOrientation="portrait" android:exported="false" />
+            <activity android:name=".AdminActivity" android:screenOrientation="portrait" android:exported="false" />
     </application>
 </manifest>
