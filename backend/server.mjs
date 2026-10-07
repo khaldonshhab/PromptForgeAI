@@ -1,11 +1,16 @@
-import http from "node:http";\nimport crypto from "node:crypto";\nimport fs from "node:fs";\nimport path from "node:path";
+import http from "node:http";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 let USERS=[];
 try{USERS=fs.existsSync(USERS_FILE)?JSON.parse(fs.readFileSync(USERS_FILE,"utf8")):JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}
 function saveUsers(){fs.writeFileSync(USERS_FILE,JSON.stringify(USERS,null,2));}
-\nconst b64u=x=>Buffer.from(x).toString("base64url");\nfunction passwordHash(password){
+
+const b64u=x=>Buffer.from(x).toString("base64url");
+function passwordHash(password){
  const salt=crypto.randomBytes(16);
  const derived=crypto.scryptSync(String(password),salt,64,{N:131072,r:8,p:1,maxmem:256*1024*1024});
  return "scrypt$131072$8$1$"+salt.toString("base64url")+"$"+derived.toString("base64url");
@@ -18,7 +23,9 @@ function verifyPassword(password,stored){
   const actual=crypto.scryptSync(String(password),salt,expected.length,{N,r,p,maxmem:256*1024*1024});
   return expected.length===actual.length&&crypto.timingSafeEqual(expected,actual);
  }catch(e){return false;}
-}\nfunction signToken(user,days=30){const exp=Math.floor(Date.now()/1000)+days*86400;const payload=b64u(JSON.stringify({u:user.username,p:!!user.premium,e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}\nfunction adminToken(){const exp=Math.floor(Date.now()/1000)+86400;const payload=b64u(JSON.stringify({u:ADMIN_USER,r:"admin",e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}
+}
+function signToken(user,days=30){const exp=Math.floor(Date.now()/1000)+days*86400;const payload=b64u(JSON.stringify({u:user.username,p:!!user.premium,e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}
+function adminToken(){const exp=Math.floor(Date.now()/1000)+86400;const payload=b64u(JSON.stringify({u:ADMIN_USER,r:"admin",e:exp}));const sig=crypto.createHmac("sha256",AUTH_SECRET).update(payload).digest("base64url");return payload+"."+sig;}
 function adminAuth(token){const p=auth(token);return p&&p.r==="admin"?p:null;}
 function auth(token){if(!AUTH_SECRET||typeof token!=="string")return null;const a=token.split(".");if(a.length!==2)return null;const expected=crypto.createHmac("sha256",AUTH_SECRET).update(a[0]).digest("base64url");const got=Buffer.from(a[1]);const exp=Buffer.from(expected);if(got.length!==exp.length||!crypto.timingSafeEqual(got,exp))return null;try{const p=JSON.parse(Buffer.from(a[0],"base64url").toString());return p.e>Date.now()/1000?p:null;}catch(e){return null;}}
 const PROFILES={
@@ -124,11 +131,20 @@ function body(req){return new Promise((resolve,reject)=>{let s="";req.on("data",
 function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
- if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");\n const session=auth(x.token);
+ if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
+ const session=auth(x.token);
  const profile=profileFor(x.platform,x.task),lang=x.language==="ar"?"Arabic":"the user's requested language";
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
- const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\nPROFILE: "+profile+"\nLANGUAGE: "+lang+"\nNATIVE PROMPT RULES: "+rule+"\nNever mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
- const user="USER IDEA:\n"+x.idea+"\n\nTASK TYPE:\n"+(x.task||"General");
+ const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"
+PROFILE: "+profile+"
+LANGUAGE: "+lang+"
+NATIVE PROMPT RULES: "+rule+"
+Never mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
+ const user="USER IDEA:
+"+x.idea+"
+
+TASK TYPE:
+"+(x.task||"General");
  let payload={model:AI_MODEL,instructions:system,input:user};
  if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  const r=await fetch(AI_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(payload)});
@@ -147,11 +163,13 @@ async function generate(x){
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
  if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
- if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}\n if(req.method==="POST"&&req.url==="/admin/login")try{const x=await body(req);if(String(x.username||"")!==ADMIN_USER||!ADMIN_PASSWORD_HASH||!verifyPassword(String(x.password||""),ADMIN_PASSWORD_HASH))return send(res,401,{error:"invalid_admin_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:adminToken(),username:ADMIN_USER});}catch(e){return send(res,400,{error:e.message||"admin_login_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}
+ if(req.method==="POST"&&req.url==="/admin/login")try{const x=await body(req);if(String(x.username||"")!==ADMIN_USER||!ADMIN_PASSWORD_HASH||!verifyPassword(String(x.password||""),ADMIN_PASSWORD_HASH))return send(res,401,{error:"invalid_admin_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:adminToken(),username:ADMIN_USER});}catch(e){return send(res,400,{error:e.message||"admin_login_failed"});}
  if(req.method==="GET"&&req.url==="/admin/users") {const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});return send(res,200,{users:USERS.map(u=>({username:u.username,enabled:u.enabled!==false,createdAt:u.createdAt||null}))});}
  if(req.method==="POST"&&req.url==="/admin/users")try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const x=await body(req),u=String(x.username||"").trim(),pass=String(x.password||"");if(!/^[A-Za-z0-9_.-]{3,40}$/.test(u)||pass.length<8)return send(res,400,{error:"invalid_user"});if(USERS.some(v=>v.username===u))return send(res,409,{error:"user_exists"});USERS.push({username:u,passwordHash:passwordHash(pass),premium:false,enabled:true,createdAt:new Date().toISOString()});saveUsers();return send(res,200,{ok:true,username:u});}catch(e){return send(res,400,{error:e.message||"create_user_failed"});}
  if(req.method==="PATCH"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));const x=await body(req),found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});if(typeof x.enabled==="boolean")found.enabled=x.enabled;if(typeof x.password==="string"&&x.password.length>=8)found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"update_user_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));const before=USERS.length;USERS=USERS.filter(v=>v.username!==u);if(USERS.length===before)return send(res,404,{error:"user_not_found"});saveUsers();return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
- if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}\n if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
+ if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
