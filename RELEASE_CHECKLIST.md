@@ -8,7 +8,7 @@
 - [x] Google Play Billing integration
 - [x] Privacy policy accessible from inside the app
 - [x] Only INTERNET and Google Play Billing permissions are declared
-- [ ] Final production backend deployed over HTTPS
+- [x] Buyer username/password login flow implemented\n- [x] AdMob test integration implemented with UMP consent flow\n- [ ] Replace AdMob test IDs with production IDs before publishing\n- [ ] Final production backend deployed over HTTPS
 - [ ] Final public privacy-policy URL selected
 - [ ] Final 512×512 Play icon prepared
 - [ ] Feature graphic prepared
