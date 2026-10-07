@@ -101,7 +101,7 @@ const RULES={
  "fal":"Specify generation task, model/input context, output requirements and relevant generation controls without inventing parameters."};
 function send(res,code,obj){res.writeHead(code,{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});res.end(JSON.stringify(obj));}
 function body(req){return new Promise((resolve,reject)=>{let s="";req.on("data",c=>{s+=c;if(s.length>1200000)reject(new Error("body_too_large"));});req.on("end",()=>{try{resolve(JSON.parse(s||"{}"))}catch(e){reject(new Error("invalid_json"))}});});}
-function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"chatgpt";}
+function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
@@ -116,7 +116,13 @@ async function generate(x){
  let d=JSON.parse(t),out=d.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
  if(!out)throw new Error("provider_no_output");
- return{prompt:out.trim(),profile};
+ const prompt=out.trim();
+ if(prompt.length<20)throw new Error("provider_prompt_too_short");
+ const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
+ if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
+ const sdMismatch=profile==="image-sd" && /--ar|--stylize|--chaos|--sref/i.test(prompt);
+ if(sdMismatch)throw new Error("platform_syntax_mismatch_sd");
+ return{prompt,profile};
 }
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
