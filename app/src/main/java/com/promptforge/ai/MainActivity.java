@@ -394,6 +394,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     private void local(String idea){
         last=PromptEngine.generate(idea,find(sel),task,ar());
         s.add("history",last);
+        ads.onGenerationCompleted(s.premium());
         result();
     }
 
