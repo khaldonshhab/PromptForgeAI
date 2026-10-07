@@ -27,6 +27,10 @@ Deploy the `backend/` folder to HTTPS and configure:
 - `AI_API_KEY`
 - `AI_MODEL`
 
+Buyer authentication environment variables:
+- `PF_AUTH_SECRET` — long random secret used to sign login sessions.
+- `PF_USERS_JSON` — JSON array of operator-provisioned accounts, for example `[{"username":"buyer1","passwordHash":"SHA256_HASH","premium":true}]`. Store this as a server secret; never commit real credentials.
+
 Then enter the HTTPS backend URL in the app Settings. Keep all provider API keys on the server.
 
 ## Premium
