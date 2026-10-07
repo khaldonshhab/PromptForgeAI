@@ -11,10 +11,14 @@ Permissions:
 No location, camera, microphone, contacts, SMS, call-log, or storage permissions are declared.
 
 ## Data that may be stored locally
-- User-generated prompts and generated prompt history.
+- Buyer account username and authentication token after login.\n- User-generated prompts and generated prompt history.
 - Saved prompts.
 - App preferences such as language and backend URL.
 - Premium entitlement state.
+
+## Advertising
+- Free users may receive Google AdMob ads.
+- Premium users with a valid Play subscription or buyer account do not receive the app's interstitial/rewarded ads.
 
 ## Data transmitted off-device
 Only when the user configures a backend and explicitly requests remote generation:
