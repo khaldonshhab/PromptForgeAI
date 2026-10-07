@@ -13,7 +13,7 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     private Storage s;
-    private BillingManager billing;
+    private BillingManager billing;\n    private AdManager ads;
     private List<Platform> ps;
     private String lang="", sel="ChatGPT", task="General", last="", mp="—", yp="—";
 
@@ -285,7 +285,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
-        r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));
+        r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));\n        addGap(r,10);\n        r.addView(card("♙",tr("حساب المشتري","Buyer Account"),"Buyer Account",tr(s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),tr(s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser()),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
@@ -376,8 +376,8 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             local(idea);
         }else{
             toast(tr("جار التوليد...","Generating..."));
-            new RemotePromptClient().generate(base,idea,sel,task,lang,(ok,val)->runOnUiThread(()->{
-                if(ok){last=val;s.add("history",last);result();}
+            new RemotePromptClient().generate(base,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
+                if(ok){last=val;s.add("history",last);ads.onGenerationCompleted(s.premium());result();}
                 else{local(idea);}
             }));
         }
@@ -509,7 +509,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         showRoot(scroll(r));
     }
 
-    private void settings(){
+    private void account(){\n        LinearLayout r=column();\n        titleBar(r,tr("حساب المشتري","Buyer Account"),"Buyer Account");\n        if(!s.accountUser().isEmpty()){\n            r.addView(text(tr("مسجل الدخول باسم: ","Signed in as: ")+s.accountUser(),16,WHITE,true),new LinearLayout.LayoutParams(-1,dp(50)));\n            addGap(r,8);\n            TextView out=button(tr("تسجيل الخروج","Log out"),false);\n            out.setOnClickListener(v->{s.logout();toast(tr("تم تسجيل الخروج","Logged out"));home();});\n            r.addView(out,new LinearLayout.LayoutParams(-1,dp(58)));\n            showRoot(scroll(r)); return;\n        }\n        r.addView(text(tr("إذا اشتريت النسخة، أدخل اسم المستخدم وكلمة المرور اللذين استلمتهما منك.","If you purchased access, enter the username and password you received from the seller."),14,MUTED,false),new LinearLayout.LayoutParams(-1,dp(70)));\n        addGap(r,8);\n        EditText user=editor("اسم المستخدم","Username",1); user.setSingleLine(true); r.addView(user,new LinearLayout.LayoutParams(-1,dp(56)));\n        addGap(r,8);\n        EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(56)));\n        addGap(r,10);\n        TextView login=button(tr("دخول وتفعيل Premium","Sign in & activate Premium"),true);\n        login.setOnClickListener(v->{String base=s.get("backend_url","").trim();if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(j.optBoolean("premium",true));toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});\n        r.addView(login,new LinearLayout.LayoutParams(-1,dp(58)));\n        showRoot(scroll(r));\n    }\n\n    private void settings(){
         LinearLayout r=column();
         titleBar(r,"الإعدادات","Settings");
 
