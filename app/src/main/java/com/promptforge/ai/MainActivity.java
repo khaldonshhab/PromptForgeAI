@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
         s=new Storage(this);
         ps=PlatformRepository.all();
         lang=s.lang();
-        if(lang.isEmpty()) chooseLanguage(); else home();
+        if(lang.isEmpty()) chooseLanguage(); else loginScreen();
     }
 
     private boolean ar(){return "ar".equals(lang);}
@@ -269,9 +269,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
         addGap(r,12);
         boolean logged=!s.accountUser().isEmpty();
-        r.addView(card(logged?"●":"♙",logged?"حسابك: "+s.accountUser():"تسجيل الدخول","Account: "+(logged?s.accountUser():"Sign in"),
-            logged?"إدارة الحساب وتغيير كلمة المرور":"سجّل الدخول مباشرة من الواجهة",
-            logged?"Manage your account and password":"Sign in directly from the main screen",v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
+        
         addGap(r,10);
         r.addView(card("✦","إنشاء برومبت","Create Prompt","حوّل الفكرة إلى برومبت جاهز","Turn an idea into a ready prompt",v->create()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
@@ -503,6 +501,62 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         showRoot(scroll(r));
     }
 
+    private void loginScreen(){
+        LinearLayout r=column();
+        r.setGravity(Gravity.CENTER_HORIZONTAL);
+        addGap(r,6);
+        FrameLayout top=new FrameLayout(this);
+        TextView brand=text("PromptForge AI",25,WHITE,true);
+        brand.setGravity(Gravity.CENTER);
+        brand.setTextDirection(View.TEXT_DIRECTION_LTR);
+        top.addView(brand,new FrameLayout.LayoutParams(-1,dp(54)));
+        TextView langBtn=button(ar()?"العربية":"English",false);
+        langBtn.setTextSize(13);
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(92),dp(44));
+        lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
+        top.addView(langBtn,lp);
+        langBtn.setOnClickListener(v->languageDialog());
+        r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,24);
+        TextView head=text(tr("تسجيل الدخول","Sign in"),28,WHITE,true);
+        head.setGravity(Gravity.CENTER);
+        r.addView(head,new LinearLayout.LayoutParams(-1,dp(48)));
+        TextView sub=text(tr("أدخل بيانات حسابك للمتابعة","Enter your account details to continue"),14,MUTED,false);
+        sub.setGravity(Gravity.CENTER);
+        r.addView(sub,new LinearLayout.LayoutParams(-1,dp(40)));
+        addGap(r,18);
+        EditText user=editor("اسم المستخدم","Username",1); user.setSingleLine(true); r.addView(user,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,10);
+        EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,16);
+        TextView login=button(tr("دخول","Sign in"),true);
+        login.setOnClickListener(v->{
+            String base="https://promptforge-backend-2p4q.onrender.com";
+            String u=user.getText().toString().trim(), p=pass.getText().toString();
+            if(u.isEmpty()||p.isEmpty()){toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter username and password"));return;}
+            login.setEnabled(false);
+            new RemotePromptClient().login(base,u,p,(ok,val)->runOnUiThread(()->{
+                if(ok){
+                    login.setEnabled(true);
+                    try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(false);toast(tr("تم تسجيل الدخول","Signed in"));home();}
+                    catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم","Invalid server response"));}
+                    return;
+                }
+                new RemotePromptClient().adminLogin(base,u,p,(adminOk,adminVal)->runOnUiThread(()->{
+                    login.setEnabled(true);
+                    if(!adminOk){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));return;}
+                    try{org.json.JSONObject j=new org.json.JSONObject(adminVal);Intent i=new Intent(this,AdminActivity.class);i.putExtra("admin_token",j.optString("token",""));startActivity(i);}catch(Exception e){toast(tr("تعذر فتح لوحة الإدارة","Could not open admin panel"));}
+                }));
+            }));
+        });
+        r.addView(login,new LinearLayout.LayoutParams(-1,dp(62)));
+        addGap(r,12);
+        TextView note=text(tr("حساب الإدارة يفتح لوحة التحكم مباشرة.\nحساب المستخدم يفتح التطبيق بدون لوحة الإدارة.","The admin account opens the control panel directly.\nRegular users open the app without admin controls."),13,MUTED,false);
+        note.setGravity(Gravity.CENTER);
+        r.addView(note,new LinearLayout.LayoutParams(-1,dp(58)));
+        showRoot(r);
+    }
+
     private void account(){
         LinearLayout r=column();
         titleBar(r,tr("حساب المستخدم","User Account"),"User Account");
@@ -521,7 +575,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             r.addView(change,new LinearLayout.LayoutParams(-1,dp(58)));
             addGap(r,8);
             TextView out=button(tr("تسجيل الخروج","Log out"),false);
-            out.setOnClickListener(v->{s.logout();toast(tr("تم تسجيل الخروج","Logged out"));home();});
+            out.setOnClickListener(v->{s.logout();toast(tr("تم تسجيل الخروج","Logged out"));loginScreen();});
             r.addView(out,new LinearLayout.LayoutParams(-1,dp(58)));
             showRoot(scroll(r)); return;
         }
