@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         FrameLayout.LayoutParams tx=new FrameLayout.LayoutParams(-1,-1);
         tx.gravity=Gravity.CENTER;
         int end=dp(72);
-        if(ar()) tx.leftMargin=end; else tx.rightMargin=end;
+        if(ar()) tx.rightMargin=end; else tx.leftMargin=end;
         box.addView(texts,tx);
 
         TextView ic=text(icon,28,BLUE,true);
@@ -255,6 +255,7 @@ public class MainActivity extends Activity {
         brand.setGravity(Gravity.CENTER);
         brand.setTextDirection(View.TEXT_DIRECTION_LTR);
         FrameLayout.LayoutParams brp=new FrameLayout.LayoutParams(-1,dp(54));
+brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         top.addView(brand,brp);
 
         TextView langBtn=button(ar()?"العربية":"English",false);
