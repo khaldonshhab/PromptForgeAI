@@ -6,7 +6,6 @@ These are implementation notes, not a substitute for the final Play Console ques
 
 Permissions:
 - INTERNET
-- com.android.vending.BILLING
 
 No location, camera, microphone, contacts, SMS, call-log, or storage permissions are declared.
 
@@ -14,20 +13,17 @@ No location, camera, microphone, contacts, SMS, call-log, or storage permissions
 - Buyer account username and authentication token after login.\n- User-generated prompts and generated prompt history.
 - Saved prompts.
 - App preferences such as language and backend URL.
-- Premium entitlement state.
 
-## Advertising
-- Free users may receive Google AdMob ads.
-- Premium users with a valid Play subscription or buyer account do not receive the app's interstitial/rewarded ads.
+## Advertising and payments
+
+- No AdMob advertising is included.
+- No Google Play Billing or in-app paid subscription is included.
 
 ## Data transmitted off-device
 Only when the user configures a backend and explicitly requests remote generation:
 - The prompt text entered for that generation request.
 
 The backend may forward the prompt to the AI provider selected by the server configuration.
-
-## Payments
-Google Play Billing handles subscription purchases. The app does not collect payment card information directly.
 
 ## Important production requirement
 If analytics, crash-reporting SDKs, advertising SDKs, authentication, cloud databases, or additional third-party services are added later, re-audit the Data Safety form and privacy policy before release.
