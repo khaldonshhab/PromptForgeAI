@@ -1,18 +1,37 @@
 # PromptForge AI
 Bilingual Android app for creating and improving prompts across a large AI-tool catalog.
 
-## Build
-Open this repository in Android Studio, use JDK 17, install Android SDK 37, then Run or Build APK.
+## Android / Google Play
+- Package: `com.promptforge.ai`
+- Target SDK: 36
+- Compile SDK: 36
+- Publishing format: Android App Bundle (AAB)
+- Google Play Billing subscriptions: `premium_monthly`, `premium_yearly`
+- Privacy policy: [PRIVACY.md](PRIVACY.md)
+- Google Play preparation: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 
-## GitHub APK
-Push to main and the Build PromptForge APK workflow produces `app-debug.apk`.
+Google Play requires new apps submitted from August 31, 2026 to target Android 16 / API 36 or higher. This project is already configured for API 36.
+
+## Build
+Use JDK 17 and Android SDK 36. The GitHub Actions workflows install the required SDK/build tools and Gradle.
+
+## GitHub Actions
+- Build APK: produces a debug APK for device testing.
+- Build AAB: produces an unsigned release AAB for build verification.
+- Release AAB: requires a Google Play upload keystore supplied through GitHub Actions secrets and produces a signed AAB suitable for Play Console upload.
 
 ## Real AI
-Deploy the `backend` folder to HTTPS, set the backend URL in the app, and keep AI provider keys on the server.
+Deploy the `backend/` folder to HTTPS and configure:
+- `AI_API_URL`
+- `AI_API_MODE`
+- `AI_API_KEY`
+- `AI_MODEL`
+
+Then enter the HTTPS backend URL in the app Settings. Keep all provider API keys on the server.
 
 ## Premium
 Create Google Play subscriptions:
-- premium_monthly
-- premium_yearly
+- `premium_monthly`
+- `premium_yearly`
 
-Do not put provider API keys or keystores in the repository.
+Do not put provider API keys, keystores, passwords, or `.env` files in the repository.
