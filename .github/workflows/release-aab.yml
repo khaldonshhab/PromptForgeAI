@@ -24,27 +24,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
-      - name: Build unsigned AAB
-        run: gradle :app:bundleRelease --no-daemon
-      - name: Decode release keystore
-        if: ${{ env.HAS_KEYSTORE != '' }}
-        env:
-          KS_B64: ${{ env.HAS_KEYSTORE }}
-        run: echo "$KS_B64" | base64 --decode > promptforge-release.jks
-      - name: Sign AAB
-        if: ${{ env.HAS_KEYSTORE != '' && env.KS_PASS != '' && env.KEY_ALIAS != '' && env.KEY_PASS != '' }}
+      - name: Validate release signing secrets
+        shell: bash
         run: |
-          jarsigner -keystore promptforge-release.jks -storepass "$KS_PASS" -keypass "$KEY_PASS" app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
-
+          set -euo pipefail
+          test -n "${HAS_KEYSTORE}" || { echo "Missing ANDROID_KEYSTORE_B64"; exit 1; }
+          test -n "${KS_PASS}" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "${KEY_ALIAS}" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "${KEY_PASS}" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+      - name: Build release AAB
+        run: gradle :app:bundleRelease --no-daemon
+      - name: Decode upload keystore
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: echo "$KS_B64" | base64 --decode > promptforge-upload.jks
+      - name: Sign AAB with Google Play upload key
+        run: |
+          jarsigner             -keystore promptforge-upload.jks             -storepass "${KS_PASS}"             -keypass "${KEY_PASS}"             -sigalg SHA256withRSA             -digestalg SHA-256             app/build/outputs/bundle/release/app-release.aab             "${KEY_ALIAS}"
+      - name: Verify AAB signature
+        run: jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab
       - name: Upload signed AAB
-        if: ${{ env.HAS_KEYSTORE != '' && env.KS_PASS != '' && env.KEY_ALIAS != '' && env.KEY_PASS != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: promptforge-release-signed-aab
-          path: app/build/outputs/bundle/release/app-release.aab
-      - name: Upload unsigned AAB
-        if: ${{ env.HAS_KEYSTORE == '' || env.KS_PASS == '' || env.KEY_ALIAS == '' || env.KEY_PASS == '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: promptforge-release-unsigned-aab
           path: app/build/outputs/bundle/release/app-release.aab
