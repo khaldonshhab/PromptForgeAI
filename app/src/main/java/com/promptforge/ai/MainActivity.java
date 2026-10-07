@@ -13,10 +13,8 @@ import java.util.*;
 
 public class MainActivity extends Activity {
     private Storage s;
-    private BillingManager billing;
-    private AdManager ads;
     private List<Platform> ps;
-    private String lang="", sel="ChatGPT", task="General", last="", mp="—", yp="—";
+    private String lang="", sel="ChatGPT", task="General", last="";
 
     private final int BG=Color.rgb(5,8,23), PANEL=Color.rgb(13,24,49), PANEL2=Color.rgb(9,18,40);
     private final int BORDER=Color.rgb(43,61,105), BLUE=Color.rgb(25,191,255), PURPLE=Color.rgb(123,77,255);
@@ -29,12 +27,6 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=30) getWindow().setDecorFitsSystemWindows(true);
         s=new Storage(this);
         ps=PlatformRepository.all();
-        billing=new BillingManager(this,s,new BillingManager.Listener(){
-            public void premium(boolean v){s.billingPremium(v);}
-            public void prices(String m,String y){mp=m;yp=y;}
-            public void msg(String x){if(x!=null&&!x.isEmpty())toast(x);}
-        });
-        billing.start();
         lang=s.lang();
         if(lang.isEmpty()) chooseLanguage(); else home();
     }
@@ -286,8 +278,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
         r.addView(card("◷","السجل","History","آخر البرومبتات","Latest generated prompts",v->listScreen("history")),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
-        r.addView(card("♛","Premium","Premium","مزايا إضافية وحدود أعلى","Extra features and higher limits",v->premium()),new LinearLayout.LayoutParams(-1,dp(86)));
-        addGap(r,10);
         r.addView(card("♙","حساب المشتري","Buyer Account",s.accountUser().isEmpty()?"تسجيل الدخول بحساب الشراء":"حساب Premium: "+s.accountUser(),s.accountUser().isEmpty()?"Sign in with your purchase account":"Premium account: "+s.accountUser(),v->account()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,12);
 
@@ -369,23 +359,13 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void generate(String idea){
-        if(!s.consume()){
-            new AlertDialog.Builder(this).setTitle(tr("انتهت الاستخدامات المجانية","Free uses reached"))
-                .setMessage(tr("يمكنك مشاهدة إعلان اختياري للحصول على استخدام إضافي، أو فتح Premium بدون إعلانات.","You can voluntarily watch an ad for one extra use, or upgrade to Premium without ads."))
-                .setPositiveButton(tr("مشاهدة إعلان","Watch ad"),(d,w)->{
-                    if(!ads.showRewardedForBonus(()->{s.bonus();runOnUiThread(()->generate(idea));}))
-                        toast(tr("الإعلان غير متاح حالياً","Rewarded ad is not available right now"));
-                })
-                .setNegativeButton("Premium",(d,w)->premium()).show();
-            return;
-        }
         String base=s.get("backend_url","").trim();
         if(base.isEmpty()){
             local(idea);
         }else{
             toast(tr("جار التوليد...","Generating..."));
             new RemotePromptClient().generate(base,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
-                if(ok){last=val;s.add("history",last);ads.onGenerationCompleted(s.premium());result();}
+                if(ok){last=val;s.add("history",last);result();}
                 else{local(idea);}
             }));
         }
@@ -394,7 +374,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     private void local(String idea){
         last=PromptEngine.generate(idea,find(sel),task,ar());
         s.add("history",last);
-        ads.onGenerationCompleted(s.premium());
         result();
     }
 
@@ -529,13 +508,13 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             r.addView(out,new LinearLayout.LayoutParams(-1,dp(58)));
             showRoot(scroll(r)); return;
         }
-        r.addView(text(tr("إذا اشتريت النسخة، أدخل اسم المستخدم وكلمة المرور اللذين استلمتهما منك.","If you purchased access, enter the username and password you received from the seller."),14,MUTED,false),new LinearLayout.LayoutParams(-1,dp(70)));
+        r.addView(text(tr("سجّل الدخول بحسابك.","Sign in with your account."),14,MUTED,false),new LinearLayout.LayoutParams(-1,dp(70)));
         addGap(r,8);
         EditText user=editor("اسم المستخدم","Username",1); user.setSingleLine(true); r.addView(user,new LinearLayout.LayoutParams(-1,dp(56)));
         addGap(r,8);
         EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(56)));
         addGap(r,10);
-        TextView login=button(tr("دخول وتفعيل Premium","Sign in & activate Premium"),true);
+        TextView login=button(tr("تسجيل الدخول","Sign in"),true);
         login.setOnClickListener(v->{String base=s.get("backend_url","").trim();if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(j.optBoolean("premium",true));toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});
         r.addView(login,new LinearLayout.LayoutParams(-1,dp(58)));
         showRoot(scroll(r));
@@ -576,40 +555,9 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(test,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,12);
 
-        TextView pm=button("Premium",true);
-        pm.setTextDirection(View.TEXT_DIRECTION_LTR);
-        pm.setOnClickListener(v->premium());
-        r.addView(pm,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,8);
-
         TextView privacy=button(tr("سياسة الخصوصية","Privacy Policy"),false);
         privacy.setOnClickListener(v->open("https://github.com/khaldonshhab/PromptForgeAI/blob/main/PRIVACY.md"));
         r.addView(privacy,new LinearLayout.LayoutParams(-1,dp(58)));
-
-        showRoot(scroll(r));
-    }
-
-    private void premium(){
-        LinearLayout r=column();
-        titleBar(r,"Premium","Premium");
-        TextView info=text(tr("تجربة أقوى مع حدود أعلى ومزايا إضافية.","Higher limits and additional features for a stronger experience."),16,WHITE,false);
-        r.addView(info,new LinearLayout.LayoutParams(-1,dp(70)));
-
-        addGap(r,10);
-        TextView m=button("★  "+tr("شهري","Monthly")+"  "+bidi(mp),true);
-        m.setTextDirection(ar()?View.TEXT_DIRECTION_FIRST_STRONG:View.TEXT_DIRECTION_LTR);
-        m.setOnClickListener(v->billing.buy(this,false));
-        r.addView(m,new LinearLayout.LayoutParams(-1,dp(62)));
-        addGap(r,8);
-
-        TextView y=button("♛  "+tr("سنوي","Yearly")+"  "+bidi(yp),false);
-        y.setOnClickListener(v->billing.buy(this,true));
-        r.addView(y,new LinearLayout.LayoutParams(-1,dp(62)));
-        addGap(r,8);
-
-        TextView restore=button(tr("استعادة الاشتراك","Restore subscription"),false);
-        restore.setOnClickListener(v->billing.restore());
-        r.addView(restore,new LinearLayout.LayoutParams(-1,dp(58)));
 
         showRoot(scroll(r));
     }
