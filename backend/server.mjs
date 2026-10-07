@@ -56,8 +56,7 @@ const RULES={
  marketing:"Specify audience, offer, awareness stage, channel, core message, tone, CTA, constraints and measurable outputs.",
  writing:"Preserve meaning and author voice unless change is requested. Specify audience, length, structure, tone and quality criteria.",
  presentation:"Define audience, objective, slide count, narrative sequence, one message per slide, visuals and speaker intent.",
- "3d":"Specify geometry, proportions, materials, surface detail, lighting, camera, background, view angle and intended use."
-
+ "3d":"Specify geometry, proportions, materials, surface detail, lighting, camera, background, view angle and intended use.",
  "firefly":"Use a natural design brief: subject, composition, style, lighting, color, background and intended asset use; never import Midjourney or SD syntax.",
  "leonardo":"Specify subject, composition, model/style intent, lighting, materials, camera and fidelity; do not invent unsupported flags.",
  "flux":"Use concise natural-language visual description with strong subject, composition, lighting, style and text requirements; avoid assuming SD syntax.",
