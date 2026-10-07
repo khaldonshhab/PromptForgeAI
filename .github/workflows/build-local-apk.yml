@@ -2,6 +2,9 @@ name: Build First Local APK
 on:
   push:
     branches: [build/local-apk]
+concurrency:
+  group: promptforge-first-build-local
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
