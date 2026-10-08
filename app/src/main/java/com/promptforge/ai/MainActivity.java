@@ -44,12 +44,69 @@ public class MainActivity extends Activity {
     }
 
     private void confirmExit(){
-        new AlertDialog.Builder(this)
-            .setTitle(tr("مغادرة التطبيق","Exit app"))
-            .setMessage(tr("هل تريد مغادرة التطبيق؟","Do you want to exit the app?"))
-            .setPositiveButton(tr("نعم","Yes"),(d,w)->finishAffinity())
-            .setNegativeButton(tr("لا","No"),null)
-            .show();
+        final Dialog dialog=new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout card=new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setPadding(dp(24),dp(24),dp(24),dp(20));
+        card.setBackground(rounded(PANEL,BORDER,28));
+
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        card.addView(logo,new LinearLayout.LayoutParams(dp(56),dp(56)));
+
+        addGap(card,12);
+        TextView title=text(tr("مغادرة التطبيق","Exit app"),21,WHITE,true);
+        title.setGravity(Gravity.CENTER);
+        card.addView(title,new LinearLayout.LayoutParams(-1,dp(34)));
+
+        TextView msg=text(tr("هل تريد مغادرة التطبيق؟","Do you want to exit the app?"),15,MUTED,false);
+        msg.setGravity(Gravity.CENTER);
+        card.addView(msg,new LinearLayout.LayoutParams(-1,dp(42)));
+
+        addGap(card,8);
+        LinearLayout actions=new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER);
+        actions.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+
+        TextView no=button(tr("لا","No"),false);
+        no.setOnClickListener(v->dialog.dismiss());
+        LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(0,dp(54),1);
+        actions.addView(no,np);
+
+        Space gap=new Space(this);
+        actions.addView(gap,new LinearLayout.LayoutParams(dp(10),1));
+
+        TextView yes=button(tr("نعم","Yes"),true);
+        yes.setOnClickListener(v->{dialog.dismiss();finishAffinity();});
+        LinearLayout.LayoutParams yp=new LinearLayout.LayoutParams(0,dp(54),1);
+        actions.addView(yes,yp);
+
+        card.addView(actions,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        dialog.setContentView(card);
+        Window w=dialog.getWindow();
+        if(w!=null){
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            WindowManager.LayoutParams lp=w.getAttributes();
+            lp.width=(int)(getResources().getDisplayMetrics().widthPixels*0.88f);
+            lp.height=WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.dimAmount=0.72f;
+            w.setAttributes(lp);
+        }
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+        Window sw=dialog.getWindow();
+        if(sw!=null){
+            WindowManager.LayoutParams lp=sw.getAttributes();
+            lp.width=(int)(getResources().getDisplayMetrics().widthPixels*0.88f);
+            lp.height=WindowManager.LayoutParams.WRAP_CONTENT;
+            lp.dimAmount=0.72f;
+            sw.setAttributes(lp);
+        }
     }
 
     private void setScreen(String screen){ currentScreen=screen; }
@@ -392,10 +449,7 @@ public class MainActivity extends Activity {
 brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         top.addView(brand,brp);
 
-        View langBtn=languageControl();
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
-        lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
-        top.addView(langBtn,lp);
+
         r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
 
         addGap(r,4);
