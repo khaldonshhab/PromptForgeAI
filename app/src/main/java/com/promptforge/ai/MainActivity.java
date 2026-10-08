@@ -550,6 +550,10 @@ public class MainActivity extends Activity {
         View random=wideAction(tr("برومبت عشوائي","Random Prompt"),tr("صورة، قصيدة، نكتة أو أغنية — مع اسمك أو اسم أي شخص","Image, poem, joke or song — with your name or anyone's"),"spark",v->randomPrompt());
         r.addView(random,new LinearLayout.LayoutParams(-1,dp(72)));
 
+        addGap(r,14);
+        View fun=wideAction(tr("اختبارات وترفيه","Fun & Compatibility"),tr("العمر المتوقع للتسلية، توافق الحبيبين، وتوقع الثروة بعد 10 سنوات","For-fun life reading, couple compatibility and 10-year wealth prediction"),"spark",v->funCenter());
+        r.addView(fun,new LinearLayout.LayoutParams(-1,dp(72)));
+
         addGap(r,20);
         TextView ph=text(tr("اختر الأداة التي تريد استخدامها","Choose the tool you want to use"),19,WHITE,true);
         r.addView(ph,new LinearLayout.LayoutParams(-1,dp(32)));
@@ -874,6 +878,7 @@ public class MainActivity extends Activity {
         addMenuRow(box,tr("إنشاء برومبت","Create Prompt"),"spark",v->{d.dismiss();create();});
         addMenuRow(box,tr("تحسين برومبت","Improve Prompt"),"edit",v->{d.dismiss();improve();});
         addMenuRow(box,tr("برومبت عشوائي","Random Prompt"),"spark",v->{d.dismiss();randomPrompt();});
+        addMenuRow(box,tr("اختبارات وترفيه","Fun & Compatibility"),"spark",v->{d.dismiss();funCenter();});
         addMenuRow(box,tr("كل المنصات والأدوات","All AI Platforms"),"grid",v->{d.dismiss();platforms();});
         addMenuRow(box,tr("المحادثات المحفوظة","Saved & History"),"chat",v->{d.dismiss();listScreen("history");});
         addMenuRow(box,tr("حسابي","My Account"),"user",v->{d.dismiss();account();});
@@ -1062,6 +1067,102 @@ public class MainActivity extends Activity {
         if(type.equals(ar()?"قصيدة":"Poem"))return poemAr[rnd.nextInt(poemAr.length)];
         if(type.equals(ar()?"نكتة":"Joke"))return jokeAr[rnd.nextInt(jokeAr.length)];
         return songAr[rnd.nextInt(songAr.length)];
+    }
+
+    private void funCenter(){
+        setScreen("fun");
+        LinearLayout r=column();
+        titleBar(r,"اختبارات وترفيه","Fun & Compatibility");
+        addGap(r,8);
+        TextView note=text(tr("هذه النتائج للتسلية فقط وليست تنبؤات علمية أو طبية أو مالية.","For entertainment only — these are not scientific, medical or financial predictions."),12,MUTED,false);
+        note.setGravity(Gravity.CENTER);
+        r.addView(note,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        LinearLayout grid=new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        addFunCard(grid,tr("متى أموت؟","When will I die?"),tr("حساب ترفيهي رمزي من الاسم واسم الأم وتاريخ الميلاد والبرج — بدون ادعاء معرفة موعد الوفاة الحقيقي.","A symbolic entertainment reading from names, birth date and zodiac — never a real death prediction."),"spark",v->funDeath());
+        addFunCard(grid,tr("نسبة توافق حبيبين","Couple Compatibility"),tr("احسب نسبة توافق ترفيهية بين شخصين.","Calculate a for-fun compatibility percentage for two people."),"heart",v->funLove());
+        addFunCard(grid,tr("كم ستكون ثروتي بعد 10 سنوات؟","My Wealth in 10 Years"),tr("توقع ترفيهي مبني على بيانات تدخلها، وليس نصيحة مالية.","An entertainment estimate based on your inputs, not financial advice."),"star",v->funWealth());
+        r.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+        showRoot(scroll(r));
+    }
+
+    private void addFunCard(LinearLayout root,String title,String sub,String icon,View.OnClickListener click){
+        FrameLayout card=panel(20);
+        card.setClickable(true); card.setFocusable(true); card.setOnClickListener(click);
+        PFIconView ic=new PFIconView(this,icon,PURPLE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(34),dp(34));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        if(ar())ip.rightMargin=dp(14);else ip.leftMargin=dp(14);
+        card.addView(ic,ip);
+        TextView t=text(title,16,WHITE,true); t.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(34));
+        if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
+        card.addView(t,tp);
+        TextView s1=text(sub,11,MUTED,false); s1.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-1,dp(44));
+        sp.setMargins(ar()?dp(54):dp(54),dp(34),dp(12),0);
+        card.addView(s1,sp);
+        root.addView(card,new LinearLayout.LayoutParams(-1,dp(88)));
+        addGap(root,10);
+    }
+
+    private void funDeath(){
+        setScreen("death");
+        LinearLayout r=column(); titleBar(r,"متى أموت؟","When will I die?");
+        addGap(r,8);
+        TextView n=text(tr("للتسلية فقط: لا يمكن للتطبيق معرفة موعد وفاة أي شخص.","For entertainment only: the app cannot know anyone's actual time of death."),12,MUTED,false);
+        n.setGravity(Gravity.CENTER); r.addView(n,new LinearLayout.LayoutParams(-1,dp(44)));
+        EditText name=editor("اسمك","Your name",1), mother=editor("اسم الأم","Mother's name",1), birth=editor("تاريخ الميلاد: YYYY-MM-DD","Birth date: YYYY-MM-DD",1), zodiac=editor("البرج (اختياري)","Zodiac (optional)",1);
+        r.addView(name,new LinearLayout.LayoutParams(-1,dp(52))); addGap(r,7);
+        r.addView(mother,new LinearLayout.LayoutParams(-1,dp(52))); addGap(r,7);
+        r.addView(birth,new LinearLayout.LayoutParams(-1,dp(52))); addGap(r,7);
+        r.addView(zodiac,new LinearLayout.LayoutParams(-1,dp(52))); addGap(r,12);
+        TextView go=button(tr("اعطني نتيجة ترفيهية","Give me a fun result"),true); r.addView(go,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(r,10);
+        EditText out=editor("", "",5); out.setFocusable(false); out.setTextIsSelectable(true); r.addView(out,new LinearLayout.LayoutParams(-1,dp(170)));
+        go.setOnClickListener(v->{
+            String seed=name.getText().toString().trim()+"|"+mother.getText().toString().trim()+"|"+birth.getText().toString().trim()+"|"+zodiac.getText().toString().trim();
+            int score=Math.abs(seed.hashCode())%100;
+            int age=72+(score%24);
+            out.setText(tr("النتيجة الترفيهية: يبدو أنك من أصحاب الأعمار الطويلة، مع عمر رمزي تقريبي "+age+" سنة. هذه ليست نبوءة ولا يمكن استخدامها لمعرفة موعد الوفاة الحقيقي.","For-fun result: you appear to have a long-life profile, with a symbolic age of about "+age+" years. This is not a prediction and cannot determine your actual death date."));
+        });
+        showRoot(scroll(r));
+    }
+
+    private void funLove(){
+        setScreen("love");
+        LinearLayout r=column(); titleBar(r,"توافق حبيبين","Couple Compatibility"); addGap(r,8);
+        EditText a=editor("اسم الشخص الأول","First name",1), b=editor("اسم الشخص الثاني","Second name",1);
+        r.addView(a,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,8);
+        r.addView(b,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,12);
+        TextView go=button(tr("احسب التوافق","Calculate Compatibility"),true); r.addView(go,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,10);
+        TextView out=text("",22,WHITE,true); out.setGravity(Gravity.CENTER); r.addView(out,new LinearLayout.LayoutParams(-1,dp(80)));
+        go.setOnClickListener(v->{
+            String x=a.getText().toString().trim(), y=b.getText().toString().trim();
+            int score=45+Math.abs((x+"♥"+y).hashCode())%56;
+            out.setText(tr("نسبة التوافق: "+score+"%","Compatibility: "+score+"%"));
+        });
+        showRoot(scroll(r));
+    }
+
+    private void funWealth(){
+        setScreen("wealth");
+        LinearLayout r=column(); titleBar(r,"ثروتي بعد 10 سنوات","My Wealth in 10 Years"); addGap(r,8);
+        TextView n=text(tr("نتيجة ترفيهية فقط وليست توقعاً مالياً حقيقياً.","For entertainment only — not a real financial forecast."),12,MUTED,false);
+        n.setGravity(Gravity.CENTER); r.addView(n,new LinearLayout.LayoutParams(-1,dp(42)));
+        EditText name=editor("اسمك","Your name",1), current=editor("ثروتك أو دخلك الحالي (اختياري)","Current wealth or income (optional)",1), goal=editor("هدفك المالي","Financial goal",1);
+        r.addView(name,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,8);
+        r.addView(current,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,8);
+        r.addView(goal,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,12);
+        TextView go=button(tr("توقع ترفيهي بعد 10 سنوات","Fun 10-year prediction"),true); r.addView(go,new LinearLayout.LayoutParams(-1,dp(56))); addGap(r,10);
+        TextView out=text("",18,WHITE,true); out.setGravity(Gravity.CENTER); r.addView(out,new LinearLayout.LayoutParams(-1,dp(110)));
+        go.setOnClickListener(v->{
+            int score=Math.abs((name.getText().toString()+"|"+current.getText().toString()+"|"+goal.getText().toString()).hashCode())%100;
+            String level=score<30?tr("بداية متواضعة مع فرصة نمو","a modest start with room to grow"):score<70?tr("نمو مالي جيد إذا حافظت على الانضباط","solid financial growth if you stay disciplined"):tr("احتمال ترفيهي لمرحلة مالية قوية","a fun scenario suggesting a strong financial future");
+            out.setText(tr("بعد 10 سنوات: "+level+".","In 10 years: "+level+"."));
+        });
+        showRoot(scroll(r));
     }
 
     private void create(){
