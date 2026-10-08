@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
     }
 
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private boolean ar(){return "ar".equals(lang);}
     private String tr(String a,String e){return ar()?a:e;}
 
@@ -245,7 +246,6 @@ public class MainActivity extends Activity {
         FrameLayout top=new FrameLayout(this);
         top.setPadding(0,0,0,dp(3));
 
-        brandText(19).setId(View.generateViewId());
         TextView brand=brandText(19);
         FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,dp(40));
         bp.gravity=Gravity.LEFT|Gravity.CENTER_VERTICAL;
@@ -495,8 +495,8 @@ public class MainActivity extends Activity {
         LinearLayout quickRow=new LinearLayout(this);
         quickRow.setOrientation(LinearLayout.HORIZONTAL);
         quickRow.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
-        TextView create=quickAction(tr("إنشاء برومبت","Create Prompt"),tr("ابدأ من فكرة جديدة","Start from an idea"),"spark",true,v->create());
-        TextView improve=quickAction(tr("تحسين برومبت","Improve Prompt"),tr("طوّر برومبت موجوداً","Upgrade an existing prompt"),"edit",false,v->improve());
+        View create=quickAction(tr("إنشاء برومبت","Create Prompt"),tr("ابدأ من فكرة جديدة","Start from an idea"),"spark",true,v->create());
+        View improve=quickAction(tr("تحسين برومبت","Improve Prompt"),tr("طوّر برومبت موجوداً","Upgrade an existing prompt"),"edit",false,v->improve());
         quickRow.addView(create,new LinearLayout.LayoutParams(0,dp(96),1));
         Space qg=new Space(this); quickRow.addView(qg,new LinearLayout.LayoutParams(dp(9),1));
         quickRow.addView(improve,new LinearLayout.LayoutParams(0,dp(96),1));
@@ -516,8 +516,8 @@ public class MainActivity extends Activity {
             rows[i]=new LinearLayout(this);
             rows[i].setOrientation(LinearLayout.HORIZONTAL);
             rows[i].setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
-            TextView a=platformTile(featured[i][0],v->{sel=featured[0][0];create();});
-            TextView b=platformTile(featured[i][1],v->{sel=featured[0][1];create();});
+            View a=platformTile(featured[i][0],v->{sel=featured[0][0];create();});
+            View b=platformTile(featured[i][1],v->{sel=featured[0][1];create();});
             final String na=featured[i][0], nb=featured[i][1];
             a.setOnClickListener(v->{sel=na;create();});
             b.setOnClickListener(v->{sel=nb;create();});
@@ -529,7 +529,7 @@ public class MainActivity extends Activity {
         }
 
         addGap(r,12);
-        TextView all=wideAction(tr("كل المنصات والأدوات","All AI Platforms"),tr("تصفّح كامل الكتالوج — "+ps.size()+" أداة ومنصة","Browse the full catalog — "+ps.size()+" tools"),"grid",v->platforms());
+        View all=wideAction(tr("كل المنصات والأدوات","All AI Platforms"),tr("تصفّح كامل الكتالوج — "+ps.size()+" أداة ومنصة","Browse the full catalog — "+ps.size()+" tools"),"grid",v->platforms());
         r.addView(all,new LinearLayout.LayoutParams(-1,dp(68)));
 
         addGap(r,20);
@@ -623,51 +623,34 @@ public class MainActivity extends Activity {
         return box;
     }
 
-    private TextView quickAction(String title,String desc,String icon,boolean primary,View.OnClickListener click){
-        TextView t=text("",14,WHITE,true);
-        t.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
-        t.setPadding(dp(14),dp(10),dp(14),dp(10));
-        t.setBackground(primary?gradient(22):rounded(PANEL,BORDER2,22));
-        t.setClickable(true);
-        t.setFocusable(true);
-        t.setOnClickListener(click);
+    private FrameLayout quickAction(String title,String desc,String icon,boolean primary,View.OnClickListener click){
         FrameLayout holder=new FrameLayout(this);
-        holder.setBackground(t.getBackground());
+        holder.setBackground(primary?gradient(22):rounded(PANEL,BORDER2,22));
         holder.setClickable(true);
+        holder.setFocusable(true);
         holder.setOnClickListener(click);
-        holder.setPadding(dp(12),0,dp(12),0);
 
         PFIconView ic=new PFIconView(this,icon,primary?WHITE:CYAN);
         FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(30),dp(30));
         ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(12):0;
+        ip.leftMargin=ar()?0:dp(12);
         holder.addView(ic,ip);
 
-        TextView h=text(title,14,WHITE,true);
-        TextView d=text(desc,10,primary?Color.argb(225,255,255,255):MUTED,false);
         LinearLayout tx=new LinearLayout(this);
         tx.setOrientation(LinearLayout.VERTICAL);
         tx.setGravity(Gravity.CENTER_VERTICAL);
-        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(24)));
-        tx.addView(d,new LinearLayout.LayoutParams(-1,dp(24)));
+        tx.addView(text(title,14,WHITE,true),new LinearLayout.LayoutParams(-1,dp(24)));
+        tx.addView(text(desc,10,primary?Color.argb(225,255,255,255):MUTED,false),new LinearLayout.LayoutParams(-1,dp(24)));
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(58));
-        if(ar()){tp.rightMargin=dp(52);}else{tp.leftMargin=dp(52);}
         tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(52);else tp.leftMargin=dp(52);
         holder.addView(tx,tp);
-        return asTextProxy(holder);
+        return holder;
     }
 
-    private TextView asTextProxy(View v){
-        TextView proxy=new TextView(this);
-        proxy.setText("");
-        proxy.setBackground(v.getBackground());
-        proxy.setClickable(true);
-        proxy.setFocusable(true);
-        return proxy;
-    }
-
-    private TextView platformTile(String name,View.OnClickListener click){
-        FrameLayout tile=platformCard(name,click);
-        return asTextProxy(tile);
+    private FrameLayout platformTile(String name,View.OnClickListener click){
+        return platformCard(name,click);
     }
 
     private FrameLayout platformCard(String name,View.OnClickListener click){
@@ -693,23 +676,24 @@ public class MainActivity extends Activity {
         return box;
     }
 
-    private TextView wideAction(String title,String desc,String icon,View.OnClickListener click){
+    private FrameLayout wideAction(String title,String desc,String icon,View.OnClickListener click){
         FrameLayout box=panel(22);
-        box.setClickable(true);box.setFocusable(true);box.setOnClickListener(click);
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setOnClickListener(click);
 
         PFIconView ic=new PFIconView(this,icon,BLUE);
         FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(28),dp(28));
         ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
-        ip.rightMargin=ar()?dp(14):0;ip.leftMargin=ar()?0:dp(14);
+        ip.rightMargin=ar()?dp(14):0;
+        ip.leftMargin=ar()?0:dp(14);
         box.addView(ic,ip);
 
         LinearLayout tx=new LinearLayout(this);
         tx.setOrientation(LinearLayout.VERTICAL);
         tx.setGravity(Gravity.CENTER_VERTICAL);
-        TextView h=text(title,14,WHITE,true);
-        TextView d=text(desc,11,MUTED,false);
-        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(25)));
-        tx.addView(d,new LinearLayout.LayoutParams(-1,dp(22)));
+        tx.addView(text(title,14,WHITE,true),new LinearLayout.LayoutParams(-1,dp(25)));
+        tx.addView(text(desc,11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(22)));
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(56));
         tp.gravity=Gravity.CENTER_VERTICAL;
         if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
@@ -718,9 +702,10 @@ public class MainActivity extends Activity {
         PFIconView arrow=new PFIconView(this,ar()?"arrowLeft":"arrowRight",MUTED);
         FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(22),dp(22));
         ap.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
-        ap.rightMargin=ar()?0:dp(12);ap.leftMargin=ar()?dp(12):0;
+        ap.rightMargin=ar()?0:dp(12);
+        ap.leftMargin=ar()?dp(12):0;
         box.addView(arrow,ap);
-        return asTextProxy(box);
+        return box;
     }
 
     private FrameLayout emptyState(){
@@ -796,27 +781,26 @@ public class MainActivity extends Activity {
         return bar;
     }
 
-    private TextView navItem(String id,String label,String icon,boolean active){
-        LinearLayout item=new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setClickable(true);
-        item.setFocusable(true);
-        item.setOnClickListener(v->{
+    private FrameLayout navItem(String id,String label,String icon,boolean active){
+        FrameLayout holder=new FrameLayout(this);
+        holder.setClickable(true);
+        holder.setFocusable(true);
+        holder.setOnClickListener(v->{
             if("home".equals(id))home();
             else if("tools".equals(id))platforms();
             else if("history".equals(id))listScreen("history");
             else settings();
         });
 
-        PFIconView ic=new PFIconView(this,icon,active?PURPLE:MUTED);
-        LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(28),dp(28));
-        item.addView(ic,ip);
-
+        LinearLayout item=new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.addView(new PFIconView(this,icon,active?PURPLE:MUTED),new LinearLayout.LayoutParams(dp(28),dp(28)));
         TextView t=text(label,9,active?WHITE:MUTED,true);
         t.setGravity(Gravity.CENTER);
         item.addView(t,new LinearLayout.LayoutParams(-1,dp(20)));
-        return asTextProxy(item);
+        holder.addView(item,new FrameLayout.LayoutParams(-1,-1));
+        return holder;
     }
 
     private View bottomSpacer(){return new Space(this);}
@@ -1218,7 +1202,7 @@ public class MainActivity extends Activity {
         setScreen("list");
         LinearLayout r=column();
         String saved="saved".equals(kind);
-        titleBar(r,saved?"المحفوظات":"المحادثات","Saved":"Recent prompts");
+        titleBar(r,saved?"المحفوظات":"المحادثات",saved?"Saved":"Recent prompts");
         addGap(r,8);
 
         List<String> items=s.list(kind);
