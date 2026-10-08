@@ -4,6 +4,7 @@ import android.app.*;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.content.*;
 import android.view.*;
 import android.widget.*;
