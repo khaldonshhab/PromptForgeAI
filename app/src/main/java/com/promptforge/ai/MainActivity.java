@@ -533,28 +533,28 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             if(u.isEmpty()||p.isEmpty()){toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter username and password"));return;}
             login.setEnabled(false);
             new RemotePromptClient().login(base,u,p,(ok,val)->runOnUiThread(()->{
-                if(ok){
-                    login.setEnabled(true);
-                    try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(false);toast(tr("تم تسجيل الدخول","Signed in"));home();}
-                    catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم","Invalid server response"));}
+                login.setEnabled(true);
+                if(!ok){
+                    String err=val==null?"":val.trim();
+                    if(err.contains("auth_not_configured")) toast(tr("الخادم غير مهيأ للمصادقة: راجع PF_AUTH_SECRET","Server authentication is not configured: check PF_AUTH_SECRET"));
+                    else if(err.contains("invalid_credentials")) toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));
+                    else if(err.isEmpty()) toast(tr("تعذر الاتصال بالخادم","Could not reach the server"));
+                    else toast(tr("خطأ من الخادم: "+err,"Server error: "+err));
                     return;
                 }
-                new RemotePromptClient().adminLogin(base,u,p,(adminOk,adminVal)->runOnUiThread(()->{
-                    login.setEnabled(true);
-                    if(!adminOk){
-                        String err=adminVal==null?"":adminVal.trim();
-                        if(err.contains("auth_not_configured")) toast(tr("الخادم غير مهيأ للمصادقة: راجع PF_AUTH_SECRET","Server authentication is not configured: check PF_AUTH_SECRET"));
-                        else if(err.contains("invalid_admin_credentials")) toast(tr("بيانات حساب الإدارة غير صحيحة","Invalid admin username or password"));
-                        else if(err.isEmpty()) toast(tr("تعذر الاتصال بالخادم","Could not reach the server"));
-                        else toast(tr("خطأ من الخادم: "+err,"Server error: "+err));
-                        return;}
-                    try{org.json.JSONObject j=new org.json.JSONObject(adminVal);Intent i=new Intent(this,AdminActivity.class);i.putExtra("admin_token",j.optString("token",""));startActivity(i);}catch(Exception e){toast(tr("تعذر فتح لوحة الإدارة","Could not open admin panel"));}
-                }));
+                try{
+                    org.json.JSONObject j=new org.json.JSONObject(val);
+                    boolean admin=j.optBoolean("admin",false);
+                    s.account(j.optString("username",""),j.optString("token",""),admin);
+                    s.accountPremium(false);
+                    toast(tr("تم تسجيل الدخول","Signed in"));
+                    home();
+                }catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم","Invalid server response"));}
             }));
         });
         r.addView(login,new LinearLayout.LayoutParams(-1,dp(62)));
         addGap(r,12);
-        TextView note=text(tr("حساب الإدارة يفتح لوحة التحكم مباشرة.\nحساب المستخدم يفتح التطبيق بدون لوحة الإدارة.","The admin account opens the control panel directly.\nRegular users open the app without admin controls."),13,MUTED,false);
+        TextView note=text(tr("تسجيل الدخول يفتح التطبيق مباشرة. حساب الأدمن يظهر له خيار لوحة التحكم من الإعدادات.\n","Sign in opens the app directly. The admin account gets a control-panel option in Settings.\n"),13,MUTED,false);
         note.setGravity(Gravity.CENTER);
         r.addView(note,new LinearLayout.LayoutParams(-1,dp(58)));
         showRoot(r);
@@ -597,6 +597,13 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     private void settings(){
         LinearLayout r=column();
         titleBar(r,"الإعدادات","Settings");
+
+        if(s.isAdmin()){
+            TextView admin=button(tr("🛡  لوحة تحكم الأدمن","🛡  Admin Control Panel"),true);
+            admin.setOnClickListener(v->{Intent i=new Intent(this,AdminActivity.class);i.putExtra("admin_token",s.accountToken());startActivity(i);});
+            r.addView(admin,new LinearLayout.LayoutParams(-1,dp(58)));
+            addGap(r,12);
+        }
 
         TextView l=button(tr("لغة التطبيق: العربية","App language: English"),false);
         l.setOnClickListener(v->languageDialog());
