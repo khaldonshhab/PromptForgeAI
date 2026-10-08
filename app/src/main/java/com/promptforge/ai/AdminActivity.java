@@ -185,14 +185,21 @@ public class AdminActivity extends Activity {
         EditText e=new EditText(this);
         e.setHint(hint); e.setTextColor(WHITE); e.setHintTextColor(MUTED); e.setTextSize(15);
         e.setPadding(dp(14),0,dp(14),0); e.setSingleLine(true);
-        e.setBackgroundColor(PANEL); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        GradientDrawable bg=new GradientDrawable();
+        bg.setColor(PANEL);
+        bg.setCornerRadius(dp(18));
+        bg.setStroke(dp(1),BORDER);
+        e.setBackground(bg); e.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         return e;
     }
 
     private TextView button(String s,boolean primary){
         TextView t=txt(s,15,WHITE,true);
         t.setGravity(Gravity.CENTER); t.setPadding(dp(12),0,dp(12),0);
-        t.setBackgroundColor(primary?ACCENT:PANEL);
+        GradientDrawable bg=new GradientDrawable();
+        bg.setColor(primary?ACCENT:PANEL);
+        bg.setCornerRadius(dp(primary?20:18));
+        t.setBackground(bg);
         return t;
     }
 
