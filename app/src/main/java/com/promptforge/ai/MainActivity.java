@@ -450,14 +450,14 @@ public class MainActivity extends Activity {
             login.setEnabled(false);
             login.setAlpha(0.65f);
             loginProgress.setVisibility(View.VISIBLE);
-            new RemotePromptClient().login(BASE_URL,u,p,(ok,val)->runOnUiThread(()->{
+            new RemotePromptClient().login(BASE_URL,u,p,s.deviceId(),(ok,val)->runOnUiThread(()->{
                 login.setEnabled(true);
                 login.setAlpha(1f);
                 loginProgress.setVisibility(View.GONE);
                 if(!ok){
                     String err=val==null?"":val.trim();
                     if(err.contains("auth_not_configured"))toast(tr("الخادم غير مهيأ للمصادقة","Server authentication is not configured"));
-                    else if(err.contains("invalid_credentials"))toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));
+                    else if(err.contains("invalid_credentials"))toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));\n                    else if(err.contains("device_already_bound"))toast(tr("هذا الحساب مستخدم على جهاز آخر","This account is already bound to another device"));\n                    else if(err.contains("device_id_required"))toast(tr("تعذر التعرف على الجهاز","Could not identify this device"));
                     else if(err.isEmpty())toast(tr("تعذر الاتصال بالخادم","Could not reach the server"));
                     else toast(tr("تعذر تسجيل الدخول: "+err,"Sign-in failed: "+err));
                     return;
