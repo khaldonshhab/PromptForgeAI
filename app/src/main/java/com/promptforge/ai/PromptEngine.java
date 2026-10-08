@@ -258,3 +258,5 @@ public final class PromptEngine {
         return x+"\n\nRe-engineer this prompt for clarity, precision and reliable execution. Remove ambiguity and repetition, add material constraints, quality criteria and an output contract when needed, preserve the author's intent, and do not invent facts or requirements. Return only the final prompt, without explaining the rewrite process.";
 
 }
+
+}
