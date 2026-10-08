@@ -31,7 +31,7 @@ public final class RemotePromptClient{
       while((line=br.readLine())!=null)sb.append(line).append('\n');
      }
     }
-    cb.done(code>=200&&code<300,sb.toString().trim());
+    cb.done(code>=200&&code<300,code>=200&&code<300?sb.toString().trim():"http_"+code);
    }catch(Exception e){
     cb.done(false,e.getMessage()==null?"network error":e.getMessage());
    }finally{
