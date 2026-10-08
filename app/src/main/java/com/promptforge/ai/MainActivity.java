@@ -223,15 +223,39 @@ public class MainActivity extends Activity {
 
     private void titleBar(LinearLayout root,String arTitle,String enTitle){
         FrameLayout bar=new FrameLayout(this);
+
         TextView t=text(tr(arTitle,enTitle),24,WHITE,true);
         t.setGravity(Gravity.CENTER);
         bar.addView(t,new FrameLayout.LayoutParams(-1,dp(54)));
+
+        // Explicit in-app Back control. It uses the same navigation action as the
+        // existing Android back handling: return to Home from secondary screens.
+        LinearLayout back=new LinearLayout(this);
+        back.setGravity(Gravity.CENTER);
+        back.setOrientation(LinearLayout.HORIZONTAL);
+        back.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        back.setPadding(dp(10),0,dp(10),0);
+        back.setBackground(rounded(PANEL2,BORDER2,18));
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setContentDescription(tr("رجوع","Back"));
+        PFIconView bic=new PFIconView(this,ar()?"arrowRight":"arrowLeft",WHITE);
+        back.addView(bic,new LinearLayout.LayoutParams(dp(24),dp(24)));
+        TextView bt=text(tr("رجوع","Back"),13,WHITE,true);
+        bt.setGravity(Gravity.CENTER);
+        back.addView(bt,new LinearLayout.LayoutParams(-2,dp(44)));
+        back.setOnClickListener(v->MainActivity.this.onBackPressed());
+
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(88),dp(44));
+        bp.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        bp.setMargins(dp(2),0,dp(2),0);
+        bar.addView(back,bp);
 
         TextView mini=text("PROMPTFORGE",10,MUTED2,true);
         mini.setTextDirection(View.TEXT_DIRECTION_LTR);
         mini.setGravity(Gravity.CENTER);
         FrameLayout.LayoutParams mp=new FrameLayout.LayoutParams(dp(86),dp(24));
-        mp.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        mp.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
         bar.addView(mini,mp);
 
         View line=new View(this);
