@@ -36,8 +36,6 @@ public class MainActivity extends Activity {
     private String tr(String a,String e){return ar()?a:e;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
 
-    private String languageLabel(){ return ar() ? "العربية" : "🇬🇧 English"; }
-
     private void showSplash(){
         FrameLayout root=new FrameLayout(this);
         root.setBackgroundColor(BG);
@@ -178,7 +176,7 @@ public class MainActivity extends Activity {
 
     private FrameLayout card(String icon,String arTitle,String enTitle,String arDesc,String enDesc,View.OnClickListener click){
         FrameLayout box=new FrameLayout(this);
-        box.setBackground(rounded(PANEL,BORDER,20));
+        box.setBackground(rounded(PANEL,BORDER,24));
         box.setClickable(true);
         box.setFocusable(true);
         box.setOnClickListener(click);
@@ -264,52 +262,51 @@ public class MainActivity extends Activity {
 
     private View brandHeader(int height){
         FrameLayout top=new FrameLayout(this);
+        top.setPadding(0,0,0,dp(4));
 
         LinearLayout brand=new LinearLayout(this);
         brand.setOrientation(LinearLayout.HORIZONTAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
-        brand.setPadding(0,0,dp(4),0);
 
         PromptForgeLogoView mini=new PromptForgeLogoView(this);
-        brand.addView(mini,new LinearLayout.LayoutParams(dp(38),dp(38)));
+        brand.addView(mini,new LinearLayout.LayoutParams(dp(34),dp(34)));
 
-        TextView name=text("PromptForge AI",19,WHITE,true);
+        TextView name=text("PromptForge AI",18,WHITE,true);
         name.setTextDirection(View.TEXT_DIRECTION_LTR);
         name.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
-        LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,dp(44));
+        LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,dp(40));
         np.leftMargin=dp(8);
         brand.addView(name,np);
 
         FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,dp(height));
-        bp.gravity=Gravity.CENTER_VERTICAL|Gravity.START;
+        bp.gravity=Gravity.LEFT|Gravity.CENTER_VERTICAL;
         top.addView(brand,bp);
 
         View lang=languageControl();
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
-        lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(40),dp(40));
+        lp.gravity=Gravity.RIGHT|Gravity.CENTER_VERTICAL;
         top.addView(lang,lp);
+
+        View line=new View(this);
+        line.setBackgroundColor(Color.rgb(27,39,70));
+        FrameLayout.LayoutParams lp2=new FrameLayout.LayoutParams(-1,dp(1));
+        lp2.gravity=Gravity.BOTTOM;
+        top.addView(line,lp2);
 
         return top;
     }
 
     private View languageControl(){
         FrameLayout wrap=new FrameLayout(this);
-        wrap.setBackground(rounded(PANEL2,BORDER,16));
+        wrap.setBackground(rounded(PANEL2,BORDER,12));
         wrap.setClickable(true);
         wrap.setFocusable(true);
+        wrap.setPadding(dp(6),dp(6),dp(6),dp(6));
 
         View flag=ar()?new SyrianFlagView(this):new UKFlagView(this);
         FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(dp(28),dp(18));
-        fp.gravity=Gravity.CENTER_VERTICAL|Gravity.START;
-        fp.leftMargin=dp(10);
+        fp.gravity=Gravity.CENTER;
         wrap.addView(flag,fp);
-
-        TextView label=text(ar()?"العربية":"English",13,WHITE,true);
-        label.setGravity(Gravity.CENTER);
-        label.setTextDirection(ar()?View.TEXT_DIRECTION_RTL:View.TEXT_DIRECTION_LTR);
-        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,-1);
-        tp.leftMargin=dp(40); tp.rightMargin=dp(8);
-        wrap.addView(label,tp);
 
         wrap.setContentDescription(ar()?"تغيير لغة التطبيق":"Change app language");
         wrap.setOnClickListener(v->languageDialog());
@@ -391,7 +388,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
         TextView settings=button(tr("⚙  الإعدادات","⚙  Settings"),false);
         settings.setOnClickListener(v->settings());
-        r.addView(settings,new LinearLayout.LayoutParams(-1,dp(54)));
+        r.addView(settings,new LinearLayout.LayoutParams(-1,dp(58)));
 
         showRoot(scroll(r));
     }
@@ -616,7 +613,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         logoHolder.setGravity(Gravity.CENTER);
         logoHolder.addView(loginLogo,new LinearLayout.LayoutParams(dp(92),dp(92)));
         r.addView(logoHolder,new LinearLayout.LayoutParams(-1,dp(98)));
-        addGap(r,10);
+        addGap(r,14);
         TextView head=text(tr("تسجيل الدخول","Sign in"),28,WHITE,true);
         head.setGravity(Gravity.CENTER);
         r.addView(head,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -627,7 +624,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         LinearLayout form=new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(dp(18),dp(18),dp(18),dp(18));
-        form.setBackground(rounded(PANEL,BORDER,22));
+        form.setBackground(rounded(PANEL,BORDER,26));
 
         EditText user=editor("اسم المستخدم","Username",1);
         user.setSingleLine(true);
