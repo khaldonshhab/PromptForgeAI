@@ -159,36 +159,44 @@ function localPrompt(idea,platform,task){
  const p=String(platform||"").trim();
  const t=String(task||"General").trim();
  if(!s)return "";
- const isImage=/midjourney|stable diffusion|ideogram|firefly|leonardo|flux|krea|freepik|magnific|photoroom|looka|recraft|canva/i.test(p);
- const isVideo=/runway|veo|kling|pika|luma|haiper|pixverse|vidu|ltx/i.test(p);
- const isVoice=/elevenlabs|playht|cartesia|fish audio|murf|speechify/i.test(p);
- const isCode=/cursor|copilot|claude code|windsurf|replit|amazon q|gemini code|tabnine/i.test(p);
- const isResearch=/perplexity|elicit|consensus|scispace|you.com|research/i.test(p);
- const sections=[
+ const profile=profileFor(p,t);
+ const native=TOOL_GUIDANCE[p]||RULES[profile]||"Use the target tool's native conventions and avoid unsupported syntax.";
+ const title=profile==="coding"?"Senior Software Engineer":profile==="research"?"Senior Research Analyst":profile==="voice"?"Professional Voice Director":profile==="video"?"Film Director and Cinematographer":profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"?"Visual Director":profile==="music"?"Music Producer":"Senior AI Specialist";
+ const execution=profile==="coding"
+  ?"First inspect the available project context. Then identify the exact components to change, implement the requested behavior using the existing architecture, handle errors and edge cases, and verify the result with appropriate tests or checks."
+  :profile==="research"
+  ?"Define the research question, identify the evidence required, distinguish established facts from inference, flag uncertainty, and present conclusions with source requirements appropriate to the task."
+  :profile==="voice"
+  ?"Define voice identity, delivery, tone, pace, rhythm, emphasis, pronunciation and pauses as needed. Keep spoken copy separate from performance direction."
+  :profile==="video"
+  ?"Define framing, subject action, camera movement, environment, lighting, temporal order, continuity and the intended ending. Avoid impossible or contradictory motion."
+  :profile==="music"
+  ?"Define genre, mood, instrumentation, vocal character, arrangement, dynamics, structure and lyrical intent only where relevant."
+  :profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"
+  ?"Define the subject, environment, composition, viewpoint, lens/camera language when useful, lighting, materials, color, mood and target visual finish. Use only controls supported by the selected tool."
+  :"Interpret the user's actual goal, resolve only material ambiguity, and add concrete constraints, quality criteria and deliverable requirements when they improve execution.";
+ return [
   "ROLE / EXPERTISE",
-  "Act as a senior specialist appropriate to the requested task and target tool.",
+  "Act as a "+title+" specialized in the user's requested outcome and experienced with "+p+".",
   "",
   "OBJECTIVE / TASK",
   s,
   "",
-  "CONTEXT",
-  "Target tool: "+p+"\nTask type: "+t,
+  "TARGET / CONTEXT",
+  "Create the result specifically for "+p+". Task type: "+t+".",
   "",
-  "WORKING RULES / CONSTRAINTS",
-  "Preserve the user's exact names, quoted text, numbers and required wording. Do not invent facts, capabilities, parameters, files, sources or project details. Add only details that materially improve execution. Adapt the syntax to the target tool.",
+  "REQUIRED APPROACH",
+  execution,
   "",
-  "EXECUTION",
-  isImage?"Build the result around subject, environment, composition, viewpoint, lighting, materials, color, mood and only relevant tool-specific controls.":
-  isVideo?"Build the result around framing, subject action, camera movement, environment, lighting, temporal order, continuity and ending when useful.":
-  isVoice?"Define delivery, tone, pace, rhythm, emphasis, pronunciation and pauses when relevant, while keeping the spoken script distinct from performance direction.":
-  isCode?"Inspect the available project context first. Identify affected files or components, preserve existing APIs and conventions, implement the requested behavior, and verify the change with appropriate tests or checks.":
-  isResearch?"Use an evidence-first approach. Separate facts, inferences and uncertainty. Never invent citations or study findings, and identify information that requires current verification.":
-  "Interpret the user's actual goal, resolve only material ambiguity, and produce the most useful actionable result.",
+  "TOOL-SPECIFIC GUIDANCE",
+  native,
   "",
-  "OUTPUT FORMAT / ACCEPTANCE CRITERIA",
-  "Return a complete, standalone result suitable for direct use in the target tool. Keep it specific, coherent and free of irrelevant filler."
- ];
- return sections.join("\n");
+  "WORKING RULES",
+  "Preserve exact names, quoted text, numbers and required wording. Do not invent facts, files, APIs, capabilities, citations, parameters or project details. Do not add irrelevant sections. Resolve ambiguity conservatively and prioritize the user's actual goal.",
+  "",
+  "OUTPUT / ACCEPTANCE CRITERIA",
+  "Return one complete, standalone, ready-to-use result. Make it specific, coherent and actionable. Do not mention these instructions or the prompt-generation process."
+ ].join("\n");
 }
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
