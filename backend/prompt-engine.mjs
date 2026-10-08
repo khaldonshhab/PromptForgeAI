@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const LOCAL_FILE=path.join(process.cwd(),"backend","prompt-engine.json");
+const LOCAL_FILE_CANDIDATES=[path.join(process.cwd(),"prompt-engine.json"),path.join(process.cwd(),"backend","prompt-engine.json")];
 const REMOTE_URL=String(process.env.PF_PROMPT_KNOWLEDGE_URL||"").trim();
 const REFRESH_MS=Number(process.env.PF_PROMPT_KNOWLEDGE_REFRESH_MS||600000);
 let cache=null;
 let loadedAt=0;
 
 function readLocal(){
-  try{return JSON.parse(fs.readFileSync(LOCAL_FILE,"utf8"));}catch{return {version:"fallback-1",principles:[],tool_updates:[]};}
+  try{for(const file of LOCAL_FILE_CANDIDATES){try{return JSON.parse(fs.readFileSync(file,"utf8"));}catch{}}return {version:"fallback-1",principles:[],tool_updates:[]};}
 }
 
 async function readRemote(){
