@@ -29,12 +29,44 @@ public class MainActivity extends Activity {
         ps=PlatformRepository.all();
         lang=s.lang();
         if(lang.isEmpty()) { lang="ar"; s.lang(lang); }
-        loginScreen();
+        showSplash();
     }
 
     private boolean ar(){return "ar".equals(lang);}
     private String tr(String a,String e){return ar()?a:e;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+
+    private String languageLabel(){ return ar() ? "العربية" : "🇬🇧 English"; }
+
+    private void showSplash(){
+        FrameLayout root=new FrameLayout(this);
+        root.setBackgroundColor(BG);
+
+        LinearLayout center=new LinearLayout(this);
+        center.setOrientation(LinearLayout.VERTICAL);
+        center.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        center.addView(logo,new LinearLayout.LayoutParams(dp(150),dp(150)));
+
+        addGap(center,18);
+        TextView title=text("PromptForge AI",30,WHITE,true);
+        title.setGravity(Gravity.CENTER);
+        title.setTextDirection(View.TEXT_DIRECTION_LTR);
+        center.addView(title,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        TextView sub=text(tr("هندسة برومبتات دقيقة","Precision Prompt Engineering"),14,MUTED,false);
+        sub.setGravity(Gravity.CENTER);
+        center.addView(sub,new LinearLayout.LayoutParams(-1,dp(34)));
+
+        FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2);
+        cp.gravity=Gravity.CENTER;
+        cp.leftMargin=dp(28); cp.rightMargin=dp(28);
+        root.addView(center,cp);
+
+        showRoot(root);
+        new Handler(Looper.getMainLooper()).postDelayed(this::loginScreen,900);
+    }
 
     private String bidi(String x){
         if(x==null || !ar()) return x;
@@ -252,10 +284,10 @@ public class MainActivity extends Activity {
 brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         top.addView(brand,brp);
 
-        TextView langBtn=button(ar()?"العربية":"English",false);
+        TextView langBtn=button(languageLabel(),false);
         langBtn.setTextSize(13);
         langBtn.setTextDirection(ar()?View.TEXT_DIRECTION_RTL:View.TEXT_DIRECTION_LTR);
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(92),dp(44));
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
         lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
         top.addView(langBtn,lp);
         langBtn.setOnClickListener(v->languageDialog());
@@ -553,10 +585,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             }));
         });
         r.addView(login,new LinearLayout.LayoutParams(-1,dp(62)));
-        addGap(r,12);
-        TextView note=text(tr("تسجيل الدخول يفتح التطبيق مباشرة. حساب الأدمن يظهر له خيار لوحة التحكم من الإعدادات.\n","Sign in opens the app directly. The admin account gets a control-panel option in Settings.\n"),13,MUTED,false);
-        note.setGravity(Gravity.CENTER);
-        r.addView(note,new LinearLayout.LayoutParams(-1,dp(58)));
         showRoot(r);
     }
 
@@ -605,7 +633,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             addGap(r,12);
         }
 
-        TextView l=button(tr("لغة التطبيق: العربية","App language: English"),false);
+        TextView l=button(tr("لغة التطبيق: العربية","App language: 🇬🇧 English"),false);
         l.setOnClickListener(v->languageDialog());
         r.addView(l,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,12);
@@ -655,6 +683,50 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void toast(String value){Toast.makeText(this,value,Toast.LENGTH_SHORT).show();}
+
+    private class PromptForgeLogoView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path brain=new Path();
+        PromptForgeLogoView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){
+            super.onDraw(c);
+            float w=getWidth(), h=getHeight();
+            float cx=w/2f, cy=h/2f, box=Math.min(w,h)*0.78f;
+            RectF r=new RectF(cx-box/2f,cy-box/2f,cx+box/2f,cy+box/2f);
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(new LinearGradient(0,0,w,h,BLUE,PURPLE,Shader.TileMode.CLAMP));
+            c.drawRoundRect(r,dp(28),dp(28),p);
+            p.setShader(null);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(235,8,15,35));
+            c.drawRoundRect(new RectF(r.left+dp(4),r.top+dp(4),r.right-dp(4),r.bottom-dp(4)),dp(25),dp(25),p);
+
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(4));
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setColor(BLUE);
+            brain.reset();
+            brain.moveTo(cx,cy-dp(34)); brain.cubicTo(cx-dp(22),cy-dp(46),cx-dp(39),cy-dp(24),cx-dp(30),cy-dp(8));
+            brain.cubicTo(cx-dp(43),cy+dp(2),cx-dp(32),cy+dp(28),cx-dp(15),cy+dp(28));
+            brain.cubicTo(cx-dp(9),cy+dp(42),cx-dp(2),cy+dp(33),cx,cy+dp(27));
+            c.drawPath(brain,p);
+            p.setColor(PURPLE);
+            brain.reset();
+            brain.moveTo(cx,cy-dp(34)); brain.cubicTo(cx+dp(22),cy-dp(46),cx+dp(39),cy-dp(24),cx+dp(30),cy-dp(8));
+            brain.cubicTo(cx+dp(43),cy+dp(2),cx+dp(32),cy+dp(28),cx+dp(15),cy+dp(28));
+            brain.cubicTo(cx+dp(9),cy+dp(42),cx+dp(2),cy+dp(33),cx,cy+dp(27));
+            c.drawPath(brain,p);
+
+            p.setColor(WHITE); p.setStrokeWidth(dp(2));
+            for(int i=0;i<3;i++){
+                float y=cy-dp(16)+i*dp(16);
+                c.drawLine(cx-dp(10),y,cx-dp(24),y,p);
+                c.drawCircle(cx-dp(27),y,dp(3),p);
+                c.drawLine(cx+dp(10),y,cx+dp(24),y,p);
+                c.drawCircle(cx+dp(27),y,dp(3),p);
+            }
+        }
+    }
 
     private class SyrianFlagView extends View{
         private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
