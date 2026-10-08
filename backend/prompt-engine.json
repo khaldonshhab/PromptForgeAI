@@ -1,0 +1,21 @@
+{
+  "version": "2026.10.08",
+  "principles": [
+    "Infer the user's actual goal before drafting; do not mechanically expand keywords.",
+    "Add only details that improve execution and are safe to infer from context.",
+    "Prefer concrete subject, context, composition, constraints and output requirements over decorative adjectives.",
+    "Use native conventions of the selected tool; never mix syntax from another tool.",
+    "Keep user-provided names, quoted text, numbers and required wording exact unless the user asks to change them.",
+    "For ambiguous requests, choose the least-assumptive useful interpretation rather than inventing facts.",
+    "For image requests, consider subject, environment, composition, camera or viewpoint, lighting, materials, mood, style and negative constraints when the target tool supports them.",
+    "For video requests, consider shot framing, camera movement, subject action, temporal order, continuity, lighting and ending.",
+    "For voice requests, consider voice identity, delivery, pace, rhythm, emotion, pronunciation, pauses and the exact spoken script.",
+    "For coding requests, include repository context, affected files, exact behavior, constraints, acceptance criteria and verification.",
+    "For research requests, distinguish evidence, inference and uncertainty and never invent sources.",
+    "Do not expose hidden reasoning or chain-of-thought; output only the useful finished prompt."
+  ],
+  "tool_updates": [
+    "Treat this knowledge layer as mutable configuration. New entries can be published remotely without rebuilding the Android APK.",
+    "When a remote knowledge document is available, prefer it over the bundled baseline."
+  ]
+}
