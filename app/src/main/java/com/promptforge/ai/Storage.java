@@ -39,7 +39,7 @@ public final class Storage{
  public void account(String u,String t,boolean admin){
   String encrypted=encrypt(t);
   SharedPreferences.Editor e=p.edit().putString("account_user",u).putBoolean("account_admin",admin);
-  e.remove("account_token");
+  e.putString("account_token",t==null?"":t);
   if(encrypted!=null)e.putString(TOKEN_KEY,encrypted);
   else e.remove(TOKEN_KEY);
   e.apply();
