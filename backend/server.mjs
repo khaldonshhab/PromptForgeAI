@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
-const PF_DB_URL=String(process.env.PF_DB_URL||"").replace(/\\/$/,""),PF_DB_KEY=process.env.PF_DB_KEY||"";
+const PF_DB_URL=String(process.env.PF_DB_URL||"").replace(/\/$/,""),PF_DB_KEY=process.env.PF_DB_KEY||"";
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 let USERS=[];
