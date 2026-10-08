@@ -150,9 +150,15 @@ public class MainActivity extends Activity {
         b.setClickable(true);
         b.setFocusable(true);
         b.setPadding(dp(12),0,dp(12),0);
-        b.setBackground(primary
-            ? new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{BLUE,PURPLE})
-            : rounded(PANEL2,BORDER,18));
+        if(primary){
+            GradientDrawable g=new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{BLUE,PURPLE});
+            g.setCornerRadius(dp(22));
+            b.setBackground(g);
+        }else{
+            b.setBackground(rounded(PANEL2,BORDER,22));
+        }
         return b;
     }
 
@@ -189,7 +195,7 @@ public class MainActivity extends Activity {
 
     private FrameLayout card(String icon,String arTitle,String enTitle,String arDesc,String enDesc,View.OnClickListener click){
         FrameLayout box=new FrameLayout(this);
-        box.setBackground(rounded(PANEL,BORDER,24));
+        box.setBackground(rounded(PANEL,BORDER,26));
         box.setClickable(true);
         box.setFocusable(true);
         box.setOnClickListener(click);
@@ -419,7 +425,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         e.setTextDirection(ar()?View.TEXT_DIRECTION_FIRST_STRONG:View.TEXT_DIRECTION_LTR);
         e.setPadding(dp(16),dp(16),dp(16),dp(16));
         e.setMinLines(minLines);
-        e.setBackground(rounded(PANEL2,BORDER,20));
+        e.setBackground(rounded(PANEL2,BORDER,22));
         return e;
     }
 
@@ -646,7 +652,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         LinearLayout form=new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(dp(18),dp(18),dp(18),dp(18));
-        form.setBackground(rounded(PANEL,BORDER,26));
+        form.setBackground(rounded(PANEL,BORDER,28));
 
         EditText user=editor("اسم المستخدم","Username",1);
         user.setSingleLine(true);
@@ -743,30 +749,37 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.addView(l,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,12);
 
+        LinearLayout backendCard=new LinearLayout(this);
+        backendCard.setOrientation(LinearLayout.VERTICAL);
+        backendCard.setPadding(dp(16),dp(16),dp(16),dp(16));
+        backendCard.setBackground(rounded(PANEL,BORDER,28));
+
         TextView label=text(tr("رابط الخادم","Backend URL"),15,WHITE,true);
-        r.addView(label,new LinearLayout.LayoutParams(-1,dp(32)));
+        backendCard.addView(label,new LinearLayout.LayoutParams(-1,dp(32)));
         TextView disclosure=text(tr(
             "عند تفعيل الخادم، يُرسل النص الذي تدخله فقط عند طلب التوليد إلى الخادم عبر اتصال HTTPS. راجع سياسة الخصوصية لمعرفة طريقة المعالجة.",
             "When a backend is enabled, the text you submit is sent to that server only when you request generation over HTTPS. See the Privacy Policy for data handling details."
         ),12,MUTED,false);
         disclosure.setPadding(0,0,0,dp(8));
-        r.addView(disclosure,new LinearLayout.LayoutParams(-1,dp(60)));
+        backendCard.addView(disclosure,new LinearLayout.LayoutParams(-1,dp(64)));
 
         EditText url=editor("https://...","https://...",1);
         url.setSingleLine(true);
         url.setText(s.get("backend_url",""));
         url.setGravity(ar()?Gravity.CENTER_VERTICAL|Gravity.RIGHT:Gravity.CENTER_VERTICAL|Gravity.LEFT);
-        r.addView(url,new LinearLayout.LayoutParams(-1,dp(56)));
-        addGap(r,8);
+        backendCard.addView(url,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(backendCard,10);
 
         TextView save=button(tr("حفظ","Save"),true);
         save.setOnClickListener(v->{s.put("backend_url",url.getText().toString().trim());toast(tr("تم الحفظ","Saved"));});
-        r.addView(save,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,8);
+        backendCard.addView(save,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(backendCard,8);
 
         TextView test=button(tr("اختبار الاتصال","Test connection"),false);
         test.setOnClickListener(v->new RemotePromptClient().health(url.getText().toString().trim(),(ok,msg)->runOnUiThread(()->toast(ok?tr("الخادم يعمل ✅","Backend healthy ✅"):tr("فشل الاتصال","Connection failed")))));
-        r.addView(test,new LinearLayout.LayoutParams(-1,dp(58)));
+        backendCard.addView(test,new LinearLayout.LayoutParams(-1,dp(58)));
+
+        r.addView(backendCard,new LinearLayout.LayoutParams(-1,-2));
         addGap(r,12);
 
         TextView privacy=button(tr("سياسة الخصوصية","Privacy Policy"),false);
