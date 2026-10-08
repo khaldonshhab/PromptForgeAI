@@ -35,10 +35,21 @@ public class MainActivity extends Activity {
 
     @Override public void onBackPressed(){
         if("home".equals(currentScreen) || "login".equals(currentScreen)){
-            super.onBackPressed();
+            confirmExit();
+        }else if("splash".equals(currentScreen)){
+            confirmExit();
         }else{
             home();
         }
+    }
+
+    private void confirmExit(){
+        new AlertDialog.Builder(this)
+            .setTitle(tr("مغادرة التطبيق","Exit app"))
+            .setMessage(tr("هل تريد مغادرة التطبيق؟","Do you want to exit the app?"))
+            .setPositiveButton(tr("نعم","Yes"),(d,w)->finishAffinity())
+            .setNegativeButton(tr("لا","No"),null)
+            .show();
     }
 
     private void setScreen(String screen){ currentScreen=screen; }
