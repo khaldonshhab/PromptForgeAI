@@ -991,19 +991,29 @@ public class MainActivity extends Activity {
     }
 
     private void generate(String idea,TextView sourceButton){
-        toast(tr("جارٍ توليد البرومبت…","Generating prompt…"));
-        new RemotePromptClient().generate(BASE_URL,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
-            sourceButton.setEnabled(true);
-            if(ok){
-                last=val;
+        toast(tr("جارٍ تجهيز الفكرة وتوليد البرومبت…","Preparing the idea and generating the prompt…"));
+        String token=s.accountToken();
+        new FreeTranslator().translateArabicToEnglish(idea,(translatedOk,translated)->runOnUiThread(()->{
+            final String source=translatedOk&&translated!=null&&!translated.trim().isEmpty()?translated.trim():idea;
+            new RemotePromptClient().generate(BASE_URL,source,sel,task,lang,token,(ok,val)->runOnUiThread(()->{
+                sourceButton.setEnabled(true);
+                if(ok){
+                    last=val;
+                    s.add("history",last);
+                    result();
+                    return;
+                }
+                if("http_401".equals(val)||"http_403".equals(val)){
+                    s.logout();
+                    toast(tr("انتهت جلسة الدخول، سجّل الدخول من جديد","Your session expired. Please sign in again."));
+                    loginScreen();
+                    return;
+                }
+                last=PromptEngine.generate(source,find(sel),task,false);
                 s.add("history",last);
                 result();
-            }else{
-                last=PromptEngine.generate(idea,find(sel),task,ar());
-                s.add("history",last);
-                result();
-                toast(tr("تم التوليد عبر المحرك المحلي","Generated with the local engine"));
-            }
+                toast(tr("تعذر الوصول للخادم؛ تم استخدام المحرك المحلي","Server unavailable; used the local engine"));
+            }));
         }));
     }
 
