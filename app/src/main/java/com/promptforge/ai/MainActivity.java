@@ -976,7 +976,7 @@ public class MainActivity extends Activity {
         TextView copy=button(tr("نسخ البرومبت","Copy Prompt"),false);
         copy.setEnabled(false);
         copy.setOnClickListener(v->{
-            ClipboardManager cm=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("PromptForgeAI",output.getText().toString()));
             toast(tr("تم نسخ البرومبت","Prompt copied"));
         });
