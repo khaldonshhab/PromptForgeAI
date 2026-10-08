@@ -11,9 +11,9 @@ let USERS=[];
 try{USERS=fs.existsSync(USERS_FILE)?JSON.parse(fs.readFileSync(USERS_FILE,"utf8")):JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}
 const dbEnabled=Boolean(PF_DB_URL&&PF_DB_KEY);
 async function dbRequest(method,pathName,payload){try{const r=await fetch(PF_DB_URL+pathName,{method,headers:{"apikey":PF_DB_KEY,"Authorization":"Bearer "+PF_DB_KEY,"Content-Type":"application/json","Prefer":method==="POST"?"return=representation":"return=minimal"},body:payload===undefined?undefined:JSON.stringify(payload)});const t=await r.text();if(!r.ok)throw new Error("database_http_"+r.status);return t?JSON.parse(t):null;}catch(e){const cause=e?.cause;throw new Error("database_fetch_failed:"+[e?.message,cause?.code,cause?.message].filter(Boolean).join("|"));}}
-async function loadUsers(){if(!dbEnabled)return USERS;const rows=await dbRequest("GET","/rest/v1/pf_users?select=username,password_hash,premium,enabled,role,created_at&order=username.asc");USERS=(rows||[]).map(v=>({username:v.username,passwordHash:v.password_hash,premium:!!v.premium,enabled:v.enabled!==false,role:v.role==="admin"?"admin":"user",createdAt:v.created_at||null}));return USERS;}
-async function createUserRecord(u){if(!dbEnabled){USERS.push(u);saveUsers();return;}await dbRequest("POST","/rest/v1/pf_users",{username:u.username,password_hash:u.passwordHash,premium:!!u.premium,enabled:u.enabled!==false,role:u.role,created_at:u.createdAt||new Date().toISOString()});USERS.push(u);}
-async function updateUserRecord(username,patch){if(!dbEnabled){const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);saveUsers();return;}const row={};if("passwordHash" in patch)row.password_hash=patch.passwordHash;if("enabled" in patch)row.enabled=patch.enabled;if("role" in patch)row.role=patch.role;await dbRequest("PATCH","/rest/v1/pf_users?username=eq."+encodeURIComponent(username),row);const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);}
+async function loadUsers(){if(!dbEnabled)return USERS;const rows=await dbRequest("GET","/rest/v1/pf_users?select=username,password_hash,premium,enabled,role,created_at,device_id&order=username.asc");USERS=(rows||[]).map(v=>({username:v.username,passwordHash:v.password_hash,premium:!!v.premium,enabled:v.enabled!==false,role:v.role==="admin"?"admin":"user",createdAt:v.created_at||null,deviceIdHash:v.device_id||null}));return USERS;}
+async function createUserRecord(u){if(!dbEnabled){USERS.push(u);saveUsers();return;}await dbRequest("POST","/rest/v1/pf_users",{username:u.username,password_hash:u.passwordHash,premium:!!u.premium,enabled:u.enabled!==false,role:u.role,created_at:u.createdAt||new Date().toISOString(),device_id:u.deviceIdHash||null});USERS.push(u);}
+async function updateUserRecord(username,patch){if(!dbEnabled){const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);saveUsers();return;}const row={};if("passwordHash" in patch)row.password_hash=patch.passwordHash;if("enabled" in patch)row.enabled=patch.enabled;if("role" in patch)row.role=patch.role;if("deviceIdHash" in patch)row.device_id=patch.deviceIdHash;await dbRequest("PATCH","/rest/v1/pf_users?username=eq."+encodeURIComponent(username),row);const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);}
 async function deleteUserRecord(username){if(!dbEnabled){USERS=USERS.filter(v=>v.username!==username);saveUsers();return;}await dbRequest("DELETE","/rest/v1/pf_users?username=eq."+encodeURIComponent(username));USERS=USERS.filter(v=>v.username!==username);}
 function saveUsers(){fs.writeFileSync(USERS_FILE,JSON.stringify(USERS,null,2));}
 
@@ -23,6 +23,7 @@ function passwordHash(password){
  const derived=crypto.scryptSync(String(password),salt,64,{N:131072,r:8,p:1,maxmem:256*1024*1024});
  return "scrypt$131072$8$1$"+salt.toString("base64url")+"$"+derived.toString("base64url");
 }
+function deviceHash(deviceId){return crypto.createHash("sha256").update(String(deviceId||"")).digest("hex");}
 function verifyPassword(password,stored){
  try{
   const a=String(stored||"").split("$"); if(a.length!==6||a[0]!=="scrypt")return false;
@@ -169,6 +170,8 @@ http.createServer(async(req,res)=>{
    const x=await body(req);
    const u=String(x.username||"").trim();
    const pass=String(x.password||"");
+   const deviceId=String(x.deviceId||"").trim();
+   if(!deviceId)return send(res,400,{error:"device_id_required"});
    if(u===ADMIN_USER&&ADMIN_PASSWORD_HASH&&verifyPassword(pass,ADMIN_PASSWORD_HASH)){
     if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});
     return send(res,200,{token:adminToken(),premium:false,username:ADMIN_USER,admin:true});
@@ -176,6 +179,9 @@ http.createServer(async(req,res)=>{
    if(dbEnabled)await loadUsers();
    const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));
    if(!found)return send(res,401,{error:"invalid_credentials"});
+   const dh=deviceHash(deviceId);
+   if(found.deviceIdHash&&found.deviceIdHash!==dh)return send(res,409,{error:"device_already_bound"});
+   if(!found.deviceIdHash){await updateUserRecord(found.username,{deviceIdHash:dh});found.deviceIdHash=dh;}
    if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});
    return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username,admin:found.role==="admin"});
   }catch(e){return send(res,400,{error:e.message||"login_failed"});}
@@ -184,6 +190,7 @@ http.createServer(async(req,res)=>{
  if(req.method==="GET"&&req.url==="/admin/users") {if(dbEnabled)try{await loadUsers();}catch(e){return send(res,500,{error:"database_error"});}const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});return send(res,200,{users:USERS.map(u=>({username:u.username,enabled:u.enabled!==false,role:u.role==="admin"?"admin":"user",createdAt:u.createdAt||null}))});}
  if(req.method==="POST"&&req.url==="/admin/users")try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const x=await body(req),u=String(x.username||"").trim(),pass=String(x.password||"");const role=x.role==="admin"?"admin":"user";if(!/^[A-Za-z0-9_.-]{3,40}$/.test(u)||pass.length<8)return send(res,400,{error:"invalid_user"});if(USERS.some(v=>v.username===u)||u===ADMIN_USER)return send(res,409,{error:"user_exists"});await createUserRecord({username:u,passwordHash:passwordHash(pass),premium:false,enabled:true,role,createdAt:new Date().toISOString()});return send(res,200,{ok:true,username:u});}catch(e){return send(res,400,{error:e.message||"create_user_failed"});}
  if(req.method==="PATCH"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));const x=await body(req),found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});const patch={};if(typeof x.enabled==="boolean"){found.enabled=x.enabled;patch.enabled=found.enabled;}if(x.role==="admin"||x.role==="user"){found.role=x.role;patch.role=found.role;}if(typeof x.password==="string"&&x.password.length>=8){found.passwordHash=passwordHash(x.password);patch.passwordHash=found.passwordHash;}await updateUserRecord(found.username,patch);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"update_user_failed"});}
+ if(req.method==="POST"&&req.url.startsWith("/admin/users/")&&req.url.endsWith("/reset-device"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length,-"/reset-device".length));const found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});await updateUserRecord(u,{deviceIdHash:null});found.deviceIdHash=null;return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"reset_device_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));if(!USERS.some(v=>v.username===u))return send(res,404,{error:"user_not_found"});await deleteUserRecord(u);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
  if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
