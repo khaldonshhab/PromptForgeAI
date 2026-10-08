@@ -1201,7 +1201,7 @@ public class MainActivity extends Activity {
     private void listScreen(String kind){
         setScreen("list");
         LinearLayout r=column();
-        String saved="saved".equals(kind);
+        boolean saved="saved".equals(kind);
         titleBar(r,saved?"المحفوظات":"المحادثات",saved?"Saved":"Recent prompts");
         addGap(r,8);
 
