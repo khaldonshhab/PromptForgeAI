@@ -15,6 +15,7 @@ public class MainActivity extends Activity {
     private Storage s;
     private List<Platform> ps;
     private String lang="", sel="ChatGPT", task="General", last="";
+    private String currentScreen="login";
 
     private final int BG=Color.rgb(5,8,23), PANEL=Color.rgb(13,24,49), PANEL2=Color.rgb(9,18,40);
     private final int BORDER=Color.rgb(43,61,105), BLUE=Color.rgb(25,191,255), PURPLE=Color.rgb(123,77,255);
@@ -32,11 +33,22 @@ public class MainActivity extends Activity {
         showSplash();
     }
 
+    @Override public void onBackPressed(){
+        if("home".equals(currentScreen) || "login".equals(currentScreen)){
+            super.onBackPressed();
+        }else{
+            home();
+        }
+    }
+
+    private void setScreen(String screen){ currentScreen=screen; }
+
     private boolean ar(){return "ar".equals(lang);}
     private String tr(String a,String e){return ar()?a:e;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
 
     private void showSplash(){
+        setScreen("splash");
         FrameLayout root=new FrameLayout(this);
         root.setBackgroundColor(BG);
 
@@ -165,10 +177,11 @@ public class MainActivity extends Activity {
         title.setGravity(Gravity.CENTER);
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(58));
         bar.addView(title,tp);
-        TextView back=smallBack();
-        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(82),dp(46));
-        bp.gravity=Gravity.CENTER_VERTICAL|Gravity.START;
-        bar.addView(back,bp);
+        View divider=new View(this);
+        divider.setBackgroundColor(Color.rgb(27,39,70));
+        FrameLayout.LayoutParams dpv=new FrameLayout.LayoutParams(-1,dp(1));
+        dpv.gravity=Gravity.BOTTOM;
+        bar.addView(divider,dpv);
         root.addView(bar,new LinearLayout.LayoutParams(-1,dp(60)));
     }
 
@@ -260,7 +273,7 @@ public class MainActivity extends Activity {
         showRoot(r);
     }
 
-    private View brandHeader(int height){
+    private View brandHeader(int height,boolean withLanguage){
         FrameLayout top=new FrameLayout(this);
         top.setPadding(0,0,0,dp(4));
 
@@ -282,10 +295,12 @@ public class MainActivity extends Activity {
         bp.gravity=Gravity.LEFT|Gravity.CENTER_VERTICAL;
         top.addView(brand,bp);
 
-        View lang=languageControl();
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(40),dp(40));
-        lp.gravity=Gravity.RIGHT|Gravity.CENTER_VERTICAL;
-        top.addView(lang,lp);
+        if(withLanguage){
+            View lang=languageControl();
+            FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(40),dp(40));
+            lp.gravity=Gravity.RIGHT|Gravity.CENTER_VERTICAL;
+            top.addView(lang,lp);
+        }
 
         View line=new View(this);
         line.setBackgroundColor(Color.rgb(27,39,70));
@@ -349,6 +364,7 @@ public class MainActivity extends Activity {
     }
 
     private void home(){
+        setScreen("home");
         LinearLayout r=column();
 
         FrameLayout top=new FrameLayout(this);
@@ -408,6 +424,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void create(){
+        setScreen("create");
         LinearLayout r=column();
         titleBar(r,"إنشاء Prompt","Create Prompt");
         EditText idea=editor("اكتب فكرتك هنا...","Describe your idea...",6);
@@ -483,6 +500,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void result(){
+        setScreen("result");
         LinearLayout r=column();
         titleBar(r,"النتيجة","Result");
         TextView out=text(last,16,WHITE,false);
@@ -515,6 +533,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void improve(){
+        setScreen("improve");
         LinearLayout r=column();
         titleBar(r,"تحسين Prompt","Improve Prompt");
         EditText input=editor("ألصق البرومبت هنا...","Paste your prompt...",8);
@@ -527,6 +546,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void platforms(){
+        setScreen("platforms");
         LinearLayout r=column();
         titleBar(r,"منصات الذكاء الاصطناعي","AI Platforms");
         EditText q=editor("بحث عن منصة...","Search platforms...",1);
@@ -582,6 +602,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void listScreen(String kind){
+        setScreen("list");
         LinearLayout r=column();
         titleBar(r,kind.equals("saved")?"المحفوظات":"السجل",kind.equals("saved")?"Saved":"History");
         List<String> items=s.list(kind);
@@ -603,10 +624,11 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void loginScreen(){
+        setScreen("login");
         LinearLayout r=column();
         r.setGravity(Gravity.CENTER_HORIZONTAL);
         addGap(r,6);
-        r.addView(brandHeader(54),new LinearLayout.LayoutParams(-1,dp(58)));
+        r.addView(brandHeader(54,false),new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,8);
         PromptForgeLogoView loginLogo=new PromptForgeLogoView(this);
         LinearLayout logoHolder=new LinearLayout(this);
@@ -670,6 +692,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void account(){
+        setScreen("account");
         LinearLayout r=column();
         titleBar(r,tr("حساب المستخدم","User Account"),"User Account");
         if(!s.accountUser().isEmpty()){
@@ -704,6 +727,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private void settings(){
+        setScreen("settings");
         LinearLayout r=column();
         titleBar(r,"الإعدادات","Settings");
 
