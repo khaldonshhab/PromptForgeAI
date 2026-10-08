@@ -176,7 +176,7 @@ async function generate(x){
  if(!out&&Array.isArray(d.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
  if(!out)throw new Error("provider_no_output");
  let prompt=out.trim();
- if(isCompilerEcho(prompt)){prompt=localPrompt(x.idea,x.platform,inferredTask,knowledge);}
+ if(isCompilerEcho(prompt)){prompt=localPrompt(x.idea,x.platform,inferredTask,knowledge); if(appArabic){prompt=prompt+"\n\nArabic version:\n"+x.idea+"، بصياغة احترافية واضحة ومفصلة تحافظ على المعنى والتفاصيل المطلوبة وتناسب الأداة المستهدفة.";}}
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
