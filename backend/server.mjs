@@ -141,7 +141,7 @@ function send(res,code,obj){res.writeHead(code,{"Content-Type":"application/json
 function body(req){return new Promise((resolve,reject)=>{let s="";req.on("data",c=>{s+=c;if(s.length>1200000)reject(new Error("body_too_large"));});req.on("end",()=>{try{resolve(JSON.parse(s||"{}"))}catch(e){reject(new Error("invalid_json"))}});});}
 function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 function inferTask(idea,platform){const s=String(idea||"").toLowerCase()+" "+String(platform||"").toLowerCase();if(/image|photo|portrait|logo|poster|illustration|صورة|بورتريه|شعار|بوستر|تصميم/.test(s))return"Image";if(/video|film|shot|camera|animation|فيديو|مشهد|لقطة|كاميرا|تحريك/.test(s))return"Video";if(/voice|narration|dub|tts|voiceover|تعليق صوتي|دوبلاج|مذيع|صوت/.test(s))return"Voice";if(/music|song|lyrics|أغنية|موسيقى|لحن|كلمات/.test(s))return"Music";if(/code|coding|program|app|api|برمجة|كود|تطبيق|واجهة برمجية/.test(s))return"Coding";if(/research|study|paper|بحث|دراسة|مصادر|مراجع/.test(s))return"Research";if(/marketing|ad|campaign|seo|تسويق|إعلان|حملة|سيو/.test(s))return"Marketing";return"General";}
-function isCompilerEcho(s){const z=String(s||"").toLowerCase();return z.includes("target tool:")||z.includes("tool-specific guidance:")||z.includes("current prompt engine knowledge:")||z.includes("output language:")||z.includes("you are promptforge's professional prompt engineer");}
+function isCompilerEcho(s){const z=String(s||"").toLowerCase();return z.includes("target tool:")||z.includes("target tool")&&z.includes("tool-specific guidance")||z.includes("tool-specific guidance:")||z.includes("current prompt engine knowledge:")||z.includes("output language:")||z.includes("task type:")&&z.includes("return only the finished prompt")||z.includes("you are promptforge's professional prompt engineer");}
 function localPrompt(idea,platform,task,knowledge){
  const s=String(idea||"").trim();
  const p=String(platform||"").trim();
@@ -159,7 +159,7 @@ function localPrompt(idea,platform,task,knowledge){
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
- const session=auth(x.token);
+ const session=auth(x.token); const appArabic=String(x.language||"").toLowerCase()==="ar";
  const requestedTask=String(x.task||"General").trim();
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  const profile=profileFor(x.platform,inferredTask);
@@ -176,7 +176,7 @@ async function generate(x){
  if(!out&&Array.isArray(d.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
  if(!out)throw new Error("provider_no_output");
  let prompt=out.trim();
- if(isCompilerEcho(prompt)){prompt=localPrompt(x.idea,x.platform,inferredTask,knowledge); if(appArabic){prompt=prompt+"\n\nArabic version:\n"+x.idea+"، بصياغة احترافية واضحة ومفصلة تحافظ على المعنى والتفاصيل المطلوبة وتناسب الأداة المستهدفة.";}}
+ if(isCompilerEcho(prompt)){prompt=localPrompt(x.idea,x.platform,inferredTask,knowledge); if(appArabic&&x.platform!=="Stable Diffusion"&&x.platform!=="FLUX"&&x.platform!=="Midjourney")prompt=prompt+"\n\n"+x.idea+" بصياغة عربية احترافية واضحة، مع الحفاظ على جميع التفاصيل المطلوبة وتكييفها مع الأداة المستهدفة.";}
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
@@ -186,7 +186,7 @@ async function generate(x){
 }
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
- if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),database:dbEnabled?"remote":"local"});
+ if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||"prompt-engine-v3",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),database:dbEnabled?"remote":"local",promptEngine:"dynamic"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
    const u=String(x.username||"").trim();
