@@ -70,7 +70,7 @@ public final class Storage{
     if(entry instanceof KeyStore.SecretKeyEntry)return ((KeyStore.SecretKeyEntry)entry).getSecretKey();
    }
    KeyGenerator generator=KeyGenerator.getInstance("AES",KEYSTORE);
-   generator.init(256);
+   generator.init(128);
    return generator.generateKey();
   }catch(Exception e){
    return null;
