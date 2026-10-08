@@ -1416,7 +1416,6 @@ public class MainActivity extends Activity {
         d.setContentView(box);sizeDialog(d,0.88f);d.show();sizeDialog(d,0.88f);
     }
 
-    private String taskLabel(){return tr("نوع المهمة: ","Task type: ")+bidi(taskName());}
 
     private void setScreen(String screen){currentScreen=screen;}
 
