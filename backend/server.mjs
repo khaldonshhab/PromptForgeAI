@@ -3,13 +3,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
-const PF_DB_URL=String(process.env.PF_DB_URL||"").replace(/\/$/,""),PF_DB_KEY=process.env.PF_DB_KEY||"";
+const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
+const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 let USERS=[];
 try{USERS=fs.existsSync(USERS_FILE)?JSON.parse(fs.readFileSync(USERS_FILE,"utf8")):JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}
 const dbEnabled=Boolean(PF_DB_URL&&PF_DB_KEY);
-async function dbRequest(method,pathName,payload){const r=await fetch(PF_DB_URL+pathName,{method,headers:{"apikey":PF_DB_KEY,"Authorization":"Bearer "+PF_DB_KEY,"Content-Type":"application/json","Prefer":method==="POST"?"return=representation":"return=minimal"},body:payload===undefined?undefined:JSON.stringify(payload)});const t=await r.text();if(!r.ok)throw new Error("database_http_"+r.status);return t?JSON.parse(t):null;}
+async function dbRequest(method,pathName,payload){try{const r=await fetch(PF_DB_URL+pathName,{method,headers:{"apikey":PF_DB_KEY,"Authorization":"Bearer "+PF_DB_KEY,"Content-Type":"application/json","Prefer":method==="POST"?"return=representation":"return=minimal"},body:payload===undefined?undefined:JSON.stringify(payload)});const t=await r.text();if(!r.ok)throw new Error("database_http_"+r.status);return t?JSON.parse(t):null;}catch(e){const cause=e?.cause;throw new Error("database_fetch_failed:"+[e?.message,cause?.code,cause?.message].filter(Boolean).join("|"));}}
 async function loadUsers(){if(!dbEnabled)return USERS;const rows=await dbRequest("GET","/rest/v1/pf_users?select=username,password_hash,premium,enabled,role,created_at&order=username.asc");USERS=(rows||[]).map(v=>({username:v.username,passwordHash:v.password_hash,premium:!!v.premium,enabled:v.enabled!==false,role:v.role==="admin"?"admin":"user",createdAt:v.created_at||null}));return USERS;}
 async function createUserRecord(u){if(!dbEnabled){USERS.push(u);saveUsers();return;}await dbRequest("POST","/rest/v1/pf_users",{username:u.username,password_hash:u.passwordHash,premium:!!u.premium,enabled:u.enabled!==false,role:u.role,created_at:u.createdAt||new Date().toISOString()});USERS.push(u);}
 async function updateUserRecord(username,patch){if(!dbEnabled){const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);saveUsers();return;}const row={};if("passwordHash" in patch)row.password_hash=patch.passwordHash;if("enabled" in patch)row.enabled=patch.enabled;if("role" in patch)row.role=patch.role;await dbRequest("PATCH","/rest/v1/pf_users?username=eq."+encodeURIComponent(username),row);const found=USERS.find(v=>v.username===username);if(found)Object.assign(found,patch);}
@@ -187,4 +188,4 @@ http.createServer(async(req,res)=>{
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
  if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
-}).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e));}console.log("PromptForge backend on "+PORT);});
+}).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e),"DB_URL="+PF_DB_URL);}console.log("PromptForge backend on "+PORT);});
