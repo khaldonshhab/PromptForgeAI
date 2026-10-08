@@ -463,10 +463,6 @@ public class MainActivity extends Activity {
         r.addView(form,new LinearLayout.LayoutParams(-1,-2));
         addGap(r,12);
 
-        TextView security=text(tr("اتصال آمن بالخدمة السحابية","Secure connection to the cloud service"),12,MUTED2,false);
-        security.setGravity(Gravity.CENTER);
-        r.addView(security,new LinearLayout.LayoutParams(-1,dp(30)));
-
         showRoot(scroll(r));
     }
 
@@ -1329,7 +1325,11 @@ public class MainActivity extends Activity {
 
         if(s.isAdmin()){
             TextView admin=button(tr("🛡  لوحة تحكم الأدمن","🛡  Admin Control Panel"),true);
-            admin.setOnClickListener(v->{Intent i=new Intent(this,AdminActivity.class);i.putExtra("admin_token",s.accountToken());startActivity(i);});
+            admin.setOnClickListener(v->{
+                Intent i=new Intent(this,AdminActivity.class);
+                i.putExtra("admin_token",s.accountToken());
+                startActivity(i);
+            });
             r.addView(admin,new LinearLayout.LayoutParams(-1,dp(58)));
             addGap(r,10);
         }
@@ -1337,48 +1337,42 @@ public class MainActivity extends Activity {
         TextView langBtn=button(tr("لغة التطبيق: العربية","App language: English"),false);
         langBtn.setOnClickListener(v->languageDialog());
         r.addView(langBtn,new LinearLayout.LayoutParams(-1,dp(56)));
-        addGap(r,10);
+        addGap(r,12);
 
-        FrameLayout cloud=panel(25);
-        PFIconView serverIcon=new PFIconView(this,"spark",BLUE);
-        FrameLayout.LayoutParams sip=new FrameLayout.LayoutParams(dp(30),dp(30));
-        sip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.TOP;
-        sip.topMargin=dp(16);sip.rightMargin=ar()?dp(16):0;sip.leftMargin=ar()?0:dp(16);
-        cloud.addView(serverIcon,sip);
+        FrameLayout appCard=panel(25);
+        PFIconView icon=new PFIconView(this,"spark",BLUE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(34),dp(34));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.TOP;
+        ip.topMargin=dp(16);
+        ip.rightMargin=ar()?dp(16):0;
+        ip.leftMargin=ar()?0:dp(16);
+        appCard.addView(icon,ip);
 
-        TextView h=text(tr("الخدمة السحابية","Cloud service"),15,WHITE,true);
-        TextView d=text(tr("الخادم الأساسي جاهز لاستقبال طلبات التوليد عبر اتصال آمن.","The primary service is ready for secure generation requests."),11,MUTED,false);
-        TextView url=text(BASE_URL.replace("https://",""),10,MUTED2,false);
-        LinearLayout tx=new LinearLayout(this);tx.setOrientation(LinearLayout.VERTICAL);tx.setGravity(Gravity.CENTER_VERTICAL);
-        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(25)));tx.addView(d,new LinearLayout.LayoutParams(-1,dp(38)));tx.addView(url,new LinearLayout.LayoutParams(-1,dp(20)));
-        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(86));tp.gravity=Gravity.CENTER_VERTICAL;
-        if(ar())tp.rightMargin=dp(62);else tp.leftMargin=dp(62);
-        cloud.addView(tx,tp);
+        TextView h=text(tr("PromptForge AI","PromptForge AI"),16,WHITE,true);
+        TextView d=text(tr(
+            "هندسة برومبتات مخصصة لأدوات الذكاء الاصطناعي المختلفة، مع الحفاظ على هدفك وصياغة مخرجات جاهزة للاستخدام.",
+            "Purpose-built prompt engineering for different AI tools, preserving your intent and shaping ready-to-use outputs."
+        ),11,MUTED,false);
+        TextView count=text(tr(ps.size()+" أداة ومنصة متاحة",""+ps.size()+" tools and platforms available"),10,MUTED2,false);
 
-        TextView test=button(tr("اختبار الاتصال","Test connection"),false);
-        test.setOnClickListener(v->{
-            test.setEnabled(false);
-            new RemotePromptClient().health(BASE_URL,(ok,msg)->runOnUiThread(()->{
-                test.setEnabled(true);
-                toast(ok?tr("الخادم يعمل بشكل صحيح ✅","Backend is healthy ✅"):tr("تعذر الاتصال بالخادم","Backend connection failed"));
-            }));
-        });
-        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(130),dp(42));
-        bp.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.BOTTOM;
-        bp.bottomMargin=dp(12);bp.rightMargin=ar()?0:dp(12);bp.leftMargin=ar()?dp(12):0;
-        cloud.addView(test,bp);
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.setGravity(Gravity.CENTER_VERTICAL);
+        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(25)));
+        tx.addView(d,new LinearLayout.LayoutParams(-1,dp(48)));
+        tx.addView(count,new LinearLayout.LayoutParams(-1,dp(20)));
 
-        r.addView(cloud,new LinearLayout.LayoutParams(-1,dp(150)));
-        addGap(r,10);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(96));
+        tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(64);else tp.leftMargin=dp(64);
+        appCard.addView(tx,tp);
 
-        TextView privacy=button(tr("سياسة الخصوصية","Privacy Policy"),false);
-        privacy.setOnClickListener(v->open("https://github.com/khaldonshhab/PromptForgeAI/blob/main/PRIVACY.md"));
-        r.addView(privacy,new LinearLayout.LayoutParams(-1,dp(54)));
+        r.addView(appCard,new LinearLayout.LayoutParams(-1,dp(126)));
+        addGap(r,12);
 
-        addGap(r,10);
-        TextView account=button(tr("الحساب","Account"),false);
-        account.setOnClickListener(v->account());
-        r.addView(account,new LinearLayout.LayoutParams(-1,dp(54)));
+        TextView accountBtn=button(tr("الحساب","Account"),false);
+        accountBtn.setOnClickListener(v->account());
+        r.addView(accountBtn,new LinearLayout.LayoutParams(-1,dp(54)));
 
         showRoot(scroll(r));
     }
@@ -1486,50 +1480,51 @@ public class MainActivity extends Activity {
             RectF r=new RectF(cx-size/2f,cy-size/2f,cx+size/2f,cy+size/2f);
 
             p.setStyle(Paint.Style.FILL);
-            p.setShadowLayer(dp(14),0,0,Color.argb(90,55,150,255));
             p.setShader(new LinearGradient(r.left,r.top,r.right,r.bottom,BLUE,PURPLE,Shader.TileMode.CLAMP));
-            c.drawRoundRect(r,dp(26),dp(26),p);
-            p.clearShadowLayer();p.setShader(null);
+            p.setShadowLayer(dp(12),0,0,Color.argb(85,48,164,255));
+            c.drawRoundRect(r,dp(25),dp(25),p);
+            p.clearShadowLayer();
+            p.setShader(null);
 
-            p.setColor(Color.rgb(7,14,32));
-            c.drawRoundRect(new RectF(r.left+dp(4),r.top+dp(4),r.right-dp(4),r.bottom-dp(4)),dp(22),dp(22),p);
+            p.setColor(Color.rgb(6,13,31));
+            c.drawRoundRect(new RectF(r.left+dp(4),r.top+dp(4),r.right-dp(4),r.bottom-dp(4)),dp(21),dp(21),p);
 
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeJoin(Paint.Join.ROUND);
+            p.setStrokeWidth(dp(3.2f));
 
-            p.setStrokeWidth(dp(2.8f));
             p.setColor(BLUE);
             path.reset();
             path.moveTo(cx,cy-dp(31));
-            path.cubicTo(cx-dp(13),cy-dp(47),cx-dp(36),cy-dp(37),cx-dp(38),cy-dp(18));
-            path.cubicTo(cx-dp(48),cy-dp(8),cx-dp(41),cy+dp(7),cx-dp(31),cy+dp(11));
-            path.cubicTo(cx-dp(32),cy+dp(26),cx-dp(16),cy+dp(36),cx-dp(8),cy+dp(28));
-            path.cubicTo(cx-dp(3),cy+dp(37),cx,cy+dp(32),cx,cy+dp(22));
+            path.cubicTo(cx-dp(12),cy-dp(45),cx-dp(31),cy-dp(40),cx-dp(36),cy-dp(24));
+            path.cubicTo(cx-dp(44),cy-dp(14),cx-dp(42),cy-dp(1),cx-dp(32),cy+dp(5));
+            path.cubicTo(cx-dp(35),cy+dp(21),cx-dp(19),cy+dp(34),cx-dp(10),cy+dp(27));
+            path.cubicTo(cx-dp(4),cy+dp(37),cx-dp(1),cy+dp(34),cx,cy+dp(22));
             c.drawPath(path,p);
 
             p.setColor(PURPLE);
             path.reset();
             path.moveTo(cx,cy-dp(31));
-            path.cubicTo(cx+dp(13),cy-dp(47),cx+dp(36),cy-dp(37),cx+dp(38),cy-dp(18));
-            path.cubicTo(cx+dp(48),cy-dp(8),cx+dp(41),cy+dp(7),cx+dp(31),cy+dp(11));
-            path.cubicTo(cx+dp(32),cy+dp(26),cx+dp(16),cy+dp(36),cx+dp(8),cy+dp(28));
-            path.cubicTo(cx+dp(3),cy+dp(37),cx,cy+dp(32),cx,cy+dp(22));
+            path.cubicTo(cx+dp(12),cy-dp(45),cx+dp(31),cy-dp(40),cx+dp(36),cy-dp(24));
+            path.cubicTo(cx+dp(44),cy-dp(14),cx+dp(42),cy-dp(1),cx+dp(32),cy+dp(5));
+            path.cubicTo(cx+dp(35),cy+dp(21),cx+dp(19),cy+dp(34),cx+dp(10),cy+dp(27));
+            path.cubicTo(cx+dp(4),cy+dp(37),cx+dp(1),cy+dp(34),cx,cy+dp(22));
             c.drawPath(path,p);
 
-            p.setColor(WHITE);p.setStrokeWidth(dp(2));
+            p.setColor(WHITE);
+            p.setStrokeWidth(dp(2.1f));
             for(int i=0;i<3;i++){
-                float yy=cy-dp(15)+dp(i*15);
-                c.drawLine(cx-dp(5),yy,cx-dp(21),yy,p);
-                c.drawCircle(cx-dp(24),yy,dp(2.6f),p);
-                c.drawLine(cx+dp(5),yy,cx+dp(21),yy,p);
-                c.drawCircle(cx+dp(24),yy,dp(2.6f),p);
+                float yy=cy-dp(14)+dp(i*14);
+                c.drawLine(cx-dp(6),yy,cx-dp(20),yy,p);
+                c.drawCircle(cx-dp(23),yy,dp(2.5f),p);
+                c.drawLine(cx+dp(6),yy,cx+dp(20),yy,p);
+                c.drawCircle(cx+dp(23),yy,dp(2.5f),p);
             }
 
-            p.setColor(Color.argb(180,95,218,255));
-            p.setStrokeWidth(dp(1.7f));
-            RectF orbit=new RectF(r.left-dp(9),cy+dp(10),r.right+dp(9),cy+dp(46));
-            c.drawOval(orbit,p);
+            p.setColor(Color.argb(180,BLUE>>16&255,BLUE>>8&255,BLUE&255));
+            p.setStrokeWidth(dp(1.3f));
+            c.drawLine(cx,cy-dp(31),cx,cy+dp(30),p);
         }
     }
 
@@ -1584,47 +1579,145 @@ public class MainActivity extends Activity {
 
     private class PlatformIconView extends View{
         private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path=new Path();
         private final String name;
         PlatformIconView(Context c,String name){super(c);this.name=name==null?"":name;setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
-        @Override protected void onDraw(Canvas c){
-            float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f,r=Math.min(w,h)*.40f;
-            int[] cs=platformColors(name);
-            p.setStyle(Paint.Style.FILL);
-            p.setShader(new LinearGradient(0,0,w,h,cs[0],cs[1],Shader.TileMode.CLAMP));
-            p.setShadowLayer(dp(5),0,0,Color.argb(60,cs[0]>>16&255,cs[0]>>8&255,cs[0]&255));
-            c.drawCircle(cx,cy,r,p);p.clearShadowLayer();p.setShader(null);
 
-            p.setColor(Color.argb(185,7,13,29));c.drawCircle(cx,cy,r*.86f,p);
-            String abbr=abbr(name);
-            p.setColor(WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(r*(abbr.length()>2?.48f:.62f));p.setTypeface(Typeface.create("sans",Typeface.BOLD));
-            Paint.FontMetrics fm=p.getFontMetrics();
-            c.drawText(abbr,cx,cy-(fm.ascent+fm.descent)/2,p);
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f,s=Math.min(w,h);
+            String x=name.toLowerCase(Locale.ROOT);
+
+            // Soft icon plate.
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(55,255,255,255));
+            c.drawCircle(cx,cy,s*.38f,p);
+
+            if(x.contains("chatgpt")){drawChatGPT(c,cx,cy,s);return;}
+            if(x.contains("claude")){drawClaude(c,cx,cy,s);return;}
+            if(x.contains("gemini")){drawGemini(c,cx,cy,s);return;}
+            if(x.contains("midjourney")){drawMidjourney(c,cx,cy,s);return;}
+            if(x.contains("perplexity")){drawPerplexity(c,cx,cy,s);return;}
+            if(x.contains("stable diffusion")){drawStable(c,cx,cy,s);return;}
+            if(x.contains("elevenlabs")){drawEleven(c,cx,cy,s);return;}
+            if(x.contains("runway")){drawRunway(c,cx,cy,s);return;}
+
+            drawGeneric(c,cx,cy,s);
         }
-        private int[] platformColors(String n){
-            String x=n.toLowerCase(Locale.ROOT);
-            if(x.contains("chatgpt"))return new int[]{Color.rgb(28,197,176),Color.rgb(51,230,205)};
-            if(x.contains("claude"))return new int[]{Color.rgb(255,106,55),Color.rgb(238,140,78)};
-            if(x.contains("gemini"))return new int[]{Color.rgb(46,124,255),Color.rgb(97,69,255)};
-            if(x.contains("midjourney"))return new int[]{Color.rgb(124,134,154),Color.rgb(213,220,232)};
-            if(x.contains("perplexity"))return new int[]{Color.rgb(23,216,224),Color.rgb(36,150,222)};
-            if(x.contains("stable diffusion"))return new int[]{Color.rgb(156,70,255),Color.rgb(98,73,245)};
-            if(x.contains("elevenlabs"))return new int[]{Color.rgb(238,241,248),Color.rgb(198,205,218)};
-            if(x.contains("runway"))return new int[]{Color.rgb(255,255,255),Color.rgb(130,145,164)};
+
+        private void stroke(int color,float width){
+            p.setStyle(Paint.Style.STROKE);p.setColor(color);p.setStrokeWidth(dp(width));
+            p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);
+            p.setShader(null);
+        }
+
+        private void drawChatGPT(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,2.3f);
+            for(int i=0;i<6;i++){
+                c.save();c.rotate(i*60,cx,cy);
+                RectF r=new RectF(cx-s*.23f,cy-s*.10f,cx+s*.23f,cy+s*.10f);
+                c.drawRoundRect(r,s*.10f,s*.10f,p);c.restore();
+            }
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);c.drawCircle(cx,cy,s*.065f,p);
+        }
+
+        private void drawClaude(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(240,103,55));
+            Path st=new Path();
+            for(int i=0;i<10;i++){
+                double a=-Math.PI/2+i*Math.PI/5;
+                float rr=(i%2==0)?s*.28f:s*.11f;
+                float xx=cx+(float)Math.cos(a)*rr,yy=cy+(float)Math.sin(a)*rr;
+                if(i==0)st.moveTo(xx,yy);else st.lineTo(xx,yy);
+            }st.close();c.drawPath(st,p);
+        }
+
+        private void drawGemini(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(79,126,255));
+            path.reset();
+            path.moveTo(cx,cy-s*.32f);path.lineTo(cx+s*.13f,cy-s*.13f);path.lineTo(cx+s*.31f,cy);
+            path.lineTo(cx+s*.13f,cy+s*.13f);path.lineTo(cx,cy+s*.32f);
+            path.lineTo(cx-s*.13f,cy+s*.13f);path.lineTo(cx-s*.31f,cy);
+            path.lineTo(cx-s*.13f,cy-s*.13f);path.close();c.drawPath(path,p);
+        }
+
+        private void drawMidjourney(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,1.7f);
+            path.reset();
+            path.moveTo(cx-s*.28f,cy+s*.25f);path.lineTo(cx-s*.10f,cy-s*.24f);path.lineTo(cx+s*.10f,cy+s*.25f);path.lineTo(cx+s*.27f,cy-s*.19f);
+            c.drawPath(path,p);
+            path.reset();
+            path.moveTo(cx-s*.20f,cy+s*.25f);path.lineTo(cx,cy-s*.12f);path.lineTo(cx+s*.19f,cy+s*.25f);
+            c.drawPath(path,p);
+            c.drawLine(cx-s*.31f,cy+s*.27f,cx+s*.31f,cy+s*.27f,p);
+        }
+
+        private void drawPerplexity(Canvas c,float cx,float cy,float s){
+            stroke(Color.rgb(0,218,225),1.8f);
+            for(int i=0;i<6;i++){
+                double a=i*Math.PI/3;
+                float x1=cx+(float)Math.cos(a)*s*.07f,y1=cy+(float)Math.sin(a)*s*.07f;
+                float x2=cx+(float)Math.cos(a)*s*.29f,y2=cy+(float)Math.sin(a)*s*.29f;
+                c.drawLine(x1,y1,x2,y2,p);
+            }
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(0,218,225));
+            c.drawCircle(cx,cy,s*.07f,p);
+        }
+
+        private void drawStable(Canvas c,float cx,float cy,float s){
+            stroke(Color.rgb(156,79,255),2.2f);
+            c.drawArc(new RectF(cx-s*.25f,cy-s*.25f,cx+s*.25f,cy+s*.25f),55,285,false,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(156,79,255));
+            c.drawCircle(cx-s*.10f,cy-s*.08f,s*.035f,p);
+            c.drawCircle(cx+s*.10f,cy+s*.08f,s*.035f,p);
+        }
+
+        private void drawEleven(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);c.drawCircle(cx,cy,s*.29f,p);
+            p.setColor(Color.rgb(20,28,45));c.drawRoundRect(new RectF(cx-s*.10f,cy-s*.15f,cx-s*.02f,cy+s*.15f),s*.02f,s*.02f,p);
+            c.drawRoundRect(new RectF(cx+s*.02f,cy-s*.15f,cx+s*.10f,cy+s*.15f),s*.02f,s*.02f,p);
+        }
+
+        private void drawRunway(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,2.2f);
+            path.reset();
+            path.moveTo(cx-s*.21f,cy+s*.26f);path.lineTo(cx-s*.21f,cy-s*.28f);path.lineTo(cx+s*.14f,cy-s*.28f);
+            path.cubicTo(cx+s*.34f,cy-s*.28f,cx+s*.34f,cy-s*.04f,cx+s*.14f,cy-s*.02f);
+            path.lineTo(cx-s*.21f,cy+s*.02f);
+            c.drawPath(path,p);
+            c.drawLine(cx-s*.02f,cy+s*.03f,cx+s*.24f,cy+s*.27f,p);
+        }
+
+        private void drawGeneric(Canvas c,float cx,float cy,float s){
+            int[] cs=genericColors(name);
+            p.setStyle(Paint.Style.FILL);p.setShader(new LinearGradient(0,0,getWidth(),getHeight(),cs[0],cs[1],Shader.TileMode.CLAMP));
+            c.drawCircle(cx,cy,s*.38f,p);p.setShader(null);
+            String ab=abbr(name);
+            p.setColor(WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(s*(ab.length()>2?.26f:.32f));
+            p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+            Paint.FontMetrics fm=p.getFontMetrics();
+            c.drawText(ab,cx,cy-(fm.ascent+fm.descent)/2,p);
+        }
+
+        private int[] genericColors(String n){
+            if(n.contains("voice"))return new int[]{Color.rgb(245,100,160),Color.rgb(120,70,255)};
+            if(n.contains("video"))return new int[]{Color.rgb(35,130,255),Color.rgb(75,75,255)};
+            if(n.contains("music"))return new int[]{Color.rgb(255,95,125),Color.rgb(130,65,255)};
             return new int[]{BLUE,VIOLET};
         }
+
         private String abbr(String n){
-            String x=n.toLowerCase(Locale.ROOT);
-            if(x.contains("chatgpt"))return "⌬";
-            if(x.contains("claude"))return "✣";
-            if(x.contains("gemini"))return "◆";
-            if(x.contains("midjourney"))return "MJ";
-            if(x.contains("perplexity"))return "P";
-            if(x.contains("stable diffusion"))return "SD";
-            if(x.contains("elevenlabs"))return "II";
-            if(x.contains("runway"))return "R";
-            String[] parts=n.trim().split("\\s+");
-            if(parts.length>=2)return (""+Character.toUpperCase(parts[0].charAt(0))+Character.toUpperCase(parts[1].charAt(0)));
-            return n.trim().isEmpty()?"AI":(""+Character.toUpperCase(n.trim().charAt(0)));
+            String x=n.trim();
+            if(x.toLowerCase(Locale.ROOT).contains("adobe firefly"))return "F";
+            if(x.toLowerCase(Locale.ROOT).contains("leonardo"))return "L";
+            if(x.toLowerCase(Locale.ROOT).contains("freepik"))return "FP";
+            if(x.toLowerCase(Locale.ROOT).contains("google veo"))return "V";
+            if(x.toLowerCase(Locale.ROOT).contains("kling"))return "K";
+            if(x.toLowerCase(Locale.ROOT).contains("pika"))return "P";
+            if(x.toLowerCase(Locale.ROOT).contains("suno"))return "S";
+            if(x.toLowerCase(Locale.ROOT).contains("udio"))return "U";
+            String[] parts=x.split("\\s+");
+            if(parts.length>=2)return ""+Character.toUpperCase(parts[0].charAt(0))+Character.toUpperCase(parts[1].charAt(0));
+            return x.isEmpty()?"AI":""+Character.toUpperCase(x.charAt(0));
         }
     }
 
