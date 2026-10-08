@@ -301,7 +301,10 @@ async function generate(x){
 }
 http.createServer(async(req,res)=>{
  const pathname=new URL(req.url,"http://127.0.0.1").pathname;
- if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
+ if(req.method==="OPTIONS"){
+  res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"});
+  return res.end();
+}
  if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:HF_TOKEN?"huggingface":"local"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
@@ -330,6 +333,6 @@ http.createServer(async(req,res)=>{
  if(req.method==="POST"&&req.url.startsWith("/admin/users/")&&req.url.endsWith("/reset-device"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length,-"/reset-device".length));const found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});await updateUserRecord(u,{deviceIdHash:null});found.deviceIdHash=null;return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"reset_device_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));if(!USERS.some(v=>v.username===u))return send(res,404,{error:"user_not_found"});await deleteUserRecord(u);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e),"DB_URL="+PF_DB_URL);}console.log("PromptForge backend on "+PORT);});
