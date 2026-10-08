@@ -1402,7 +1402,16 @@ public class MainActivity extends Activity {
         appCard.addView(tx,tp);
 
         r.addView(appCard,new LinearLayout.LayoutParams(-1,dp(126)));
-        addGap(r,12);
+        addGap(r,10);
+
+        TextView translationInfo=text(tr(
+            "الترجمة العربية → الإنجليزية تعمل على الجهاز عبر Google ML Kit، بدون مفتاح API أو خدمة مدفوعة. قد يُطلب تنزيل نموذج ترجمة عند أول استخدام.",
+            "Arabic → English translation runs on-device with Google ML Kit, with no API key or paid service. A translation model may download on first use."
+        ),10,MUTED2,false);
+        translationInfo.setGravity(ar()?Gravity.RIGHT:Gravity.LEFT);
+        translationInfo.setPadding(dp(4),dp(4),dp(4),dp(4));
+        r.addView(translationInfo,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,6);
 
         TextView accountBtn=button(tr("الحساب","Account"),false);
         accountBtn.setOnClickListener(v->account());
