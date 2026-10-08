@@ -1471,60 +1471,148 @@ public class MainActivity extends Activity {
 
     private class PromptForgeLogoView extends View{
         private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path path=new Path();
+        private final Path leftBrain=new Path();
+        private final Path rightBrain=new Path();
         PromptForgeLogoView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+
         @Override protected void onDraw(Canvas c){
             super.onDraw(c);
+
             float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f;
             float size=Math.min(w,h)*0.80f;
-            RectF r=new RectF(cx-size/2f,cy-size/2f,cx+size/2f,cy+size/2f);
+            RectF outer=new RectF(cx-size/2f,cy-size/2f,cx+size/2f,cy+size/2f);
 
+            // 3D / glass chassis: luminous edge + dark recessed face.
             p.setStyle(Paint.Style.FILL);
-            p.setShader(new LinearGradient(r.left,r.top,r.right,r.bottom,BLUE,PURPLE,Shader.TileMode.CLAMP));
-            p.setShadowLayer(dp(12),0,0,Color.argb(85,48,164,255));
-            c.drawRoundRect(r,dp(25),dp(25),p);
+            p.setShader(new LinearGradient(
+                outer.left,outer.top,outer.right,outer.bottom,
+                new int[]{CYAN,VIOLET,PURPLE},
+                null,Shader.TileMode.CLAMP));
+            p.setShadowLayer(dp(16),0,dp(4),Color.argb(100,30,150,255));
+            c.drawRoundRect(outer,dp(25),dp(25),p);
             p.clearShadowLayer();
             p.setShader(null);
 
-            p.setColor(Color.rgb(6,13,31));
-            c.drawRoundRect(new RectF(r.left+dp(4),r.top+dp(4),r.right-dp(4),r.bottom-dp(4)),dp(21),dp(21),p);
+            RectF face=new RectF(outer.left+dp(4),outer.top+dp(4),outer.right-dp(4),outer.bottom-dp(4));
+            p.setColor(Color.rgb(5,12,28));
+            c.drawRoundRect(face,dp(21),dp(21),p);
 
+            // Beveled rim: bright upper-left, deep lower-right.
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(1.4f));
+            p.setColor(Color.argb(170,130,222,255));
+            c.drawRoundRect(new RectF(face.left+dp(1),face.top+dp(1),face.right-dp(1),face.bottom-dp(1)),dp(20),dp(20),p);
+            p.setColor(Color.argb(120,60,34,130));
+            c.drawRoundRect(new RectF(face.left+dp(2),face.top+dp(2),face.right-dp(2),face.bottom-dp(2)),dp(19),dp(19),p);
+
+            buildBrains(cx,cy);
+
+            // Soft 3D extrusion beneath both halves.
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeJoin(Paint.Join.ROUND);
-            p.setStrokeWidth(dp(3.2f));
+            p.setStrokeWidth(dp(5.6f));
+            p.setColor(Color.argb(110,0,71,120));
+            c.save();
+            c.translate(dp(3),dp(4));
+            c.drawPath(leftBrain,p);
+            p.setColor(Color.argb(105,74,28,145));
+            c.drawPath(rightBrain,p);
+            c.restore();
 
-            p.setColor(BLUE);
-            path.reset();
-            path.moveTo(cx,cy-dp(31));
-            path.cubicTo(cx-dp(12),cy-dp(45),cx-dp(31),cy-dp(40),cx-dp(36),cy-dp(24));
-            path.cubicTo(cx-dp(44),cy-dp(14),cx-dp(42),cy-dp(1),cx-dp(32),cy+dp(5));
-            path.cubicTo(cx-dp(35),cy+dp(21),cx-dp(19),cy+dp(34),cx-dp(10),cy+dp(27));
-            path.cubicTo(cx-dp(4),cy+dp(37),cx-dp(1),cy+dp(34),cx,cy+dp(22));
-            c.drawPath(path,p);
-
-            p.setColor(PURPLE);
-            path.reset();
-            path.moveTo(cx,cy-dp(31));
-            path.cubicTo(cx+dp(12),cy-dp(45),cx+dp(31),cy-dp(40),cx+dp(36),cy-dp(24));
-            path.cubicTo(cx+dp(44),cy-dp(14),cx+dp(42),cy-dp(1),cx+dp(32),cy+dp(5));
-            path.cubicTo(cx+dp(35),cy+dp(21),cx+dp(19),cy+dp(34),cx+dp(10),cy+dp(27));
-            path.cubicTo(cx+dp(4),cy+dp(37),cx+dp(1),cy+dp(34),cx,cy+dp(22));
-            c.drawPath(path,p);
-
+            // Main neon outlines with a vertical cyan→violet gradient.
+            p.setStrokeWidth(dp(3.4f));
+            p.setShader(new LinearGradient(cx-dp(40),0,cx,0,CYAN,BLUE,Shader.TileMode.CLAMP));
             p.setColor(WHITE);
-            p.setStrokeWidth(dp(2.1f));
-            for(int i=0;i<3;i++){
-                float yy=cy-dp(14)+dp(i*14);
-                c.drawLine(cx-dp(6),yy,cx-dp(20),yy,p);
-                c.drawCircle(cx-dp(23),yy,dp(2.5f),p);
-                c.drawLine(cx+dp(6),yy,cx+dp(20),yy,p);
-                c.drawCircle(cx+dp(23),yy,dp(2.5f),p);
-            }
+            p.setShadowLayer(dp(7),0,0,Color.argb(120,35,180,255));
+            c.drawPath(leftBrain,p);
+            p.clearShadowLayer();
+            p.setShader(new LinearGradient(cx,0,cx+dp(40),0,PURPLE,VIOLET,Shader.TileMode.CLAMP));
+            p.setShadowLayer(dp(7),0,0,Color.argb(115,145,80,255));
+            c.drawPath(rightBrain,p);
+            p.clearShadowLayer();
+            p.setShader(null);
 
-            p.setColor(Color.argb(180,BLUE>>16&255,BLUE>>8&255,BLUE&255));
-            p.setStrokeWidth(dp(1.3f));
-            c.drawLine(cx,cy-dp(31),cx,cy+dp(30),p);
+            // Fine white/cyan highlight line = glass-like edge.
+            p.setStrokeWidth(dp(1.15f));
+            p.setColor(Color.argb(200,220,250,255));
+            c.drawPath(leftBrain,p);
+            p.setColor(Color.argb(175,245,220,255));
+            c.drawPath(rightBrain,p);
+
+            drawCircuits(c,cx,cy);
+
+            // Central spine: makes the two halves read as one coherent brain.
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(2.2f));
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setColor(Color.argb(235,WHITE>>16&255,WHITE>>8&255,WHITE&255));
+            Path spine=new Path();
+            spine.moveTo(cx,cy-dp(31));
+            spine.cubicTo(cx-dp(2),cy-dp(17),cx+dp(2),cy-dp(4),cx,cy+dp(12));
+            spine.cubicTo(cx-dp(2),cy+dp(21),cx+dp(2),cy+dp(27),cx,cy+dp(31));
+            c.drawPath(spine,p);
+        }
+
+        private void buildBrains(float cx,float cy){
+            leftBrain.reset();
+            leftBrain.moveTo(cx,cy-dp(31));
+            leftBrain.cubicTo(cx-dp(12),cy-dp(45),cx-dp(28),cy-dp(43),cx-dp(35),cy-dp(32));
+            leftBrain.cubicTo(cx-dp(44),cy-dp(25),cx-dp(43),cy-dp(15),cx-dp(38),cy-dp(8));
+            leftBrain.cubicTo(cx-dp(47),cy+dp(2),cx-dp(41),cy+dp(14),cx-dp(31),cy+dp(18));
+            leftBrain.cubicTo(cx-dp(30),cy+dp(29),cx-dp(19),cy+dp(35),cx-dp(10),cy+dp(27));
+            leftBrain.cubicTo(cx-dp(5),cy+dp(36),cx-dp(2),cy+dp(33),cx,cy+dp(22));
+
+            rightBrain.reset();
+            rightBrain.moveTo(cx,cy-dp(31));
+            rightBrain.cubicTo(cx+dp(12),cy-dp(45),cx+dp(28),cy-dp(43),cx+dp(35),cy-dp(32));
+            rightBrain.cubicTo(cx+dp(44),cy-dp(25),cx+dp(43),cy-dp(15),cx+dp(38),cy-dp(8));
+            rightBrain.cubicTo(cx+dp(47),cy+dp(2),cx+dp(41),cy+dp(14),cx+dp(31),cy+dp(18));
+            rightBrain.cubicTo(cx+dp(30),cy+dp(29),cx+dp(19),cy+dp(35),cx+dp(10),cy+dp(27));
+            rightBrain.cubicTo(cx+dp(5),cy+dp(36),cx+dp(2),cy+dp(33),cx,cy+dp(22));
+        }
+
+        private void drawCircuits(Canvas c,float cx,float cy){
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
+            p.setStrokeWidth(dp(1.7f));
+
+            // Left/cyan circuits.
+            p.setColor(Color.argb(235,CYAN>>16&255,CYAN>>8&255,CYAN&255));
+            Path[] lefts=new Path[]{
+                line(cx-dp(8),cy-dp(14),cx-dp(22),cy-dp(8)),
+                line(cx-dp(7),cy+dp(1),cx-dp(24),cy+dp(10)),
+                line(cx-dp(8),cy+dp(15),cx-dp(20),cy+dp(22))
+            };
+            for(Path q:lefts)c.drawPath(q,p);
+            c.drawCircle(cx-dp(25),cy-dp(8),dp(2.6f),p);
+            c.drawCircle(cx-dp(27),cy+dp(10),dp(2.6f),p);
+            c.drawCircle(cx-dp(23),cy+dp(22),dp(2.6f),p);
+
+            // Right/violet circuits.
+            p.setColor(Color.argb(235,PURPLE>>16&255,PURPLE>>8&255,PURPLE&255));
+            Path[] rights=new Path[]{
+                line(cx+dp(8),cy-dp(14),cx+dp(22),cy-dp(22)),
+                line(cx+dp(8),cy, cx+dp(25),cy-dp(8)),
+                line(cx+dp(8),cy+dp(13),cx+dp(22),cy+dp(5))
+            };
+            for(Path q:rights)c.drawPath(q,p);
+            c.drawCircle(cx+dp(22),cy-dp(22),dp(2.6f),p);
+            c.drawCircle(cx+dp(27),cy-dp(8),dp(2.6f),p);
+            c.drawCircle(cx+dp(24),cy+dp(5),dp(2.6f),p);
+
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(220,WHITE>>16&255,WHITE>>8&255,WHITE&255));
+            c.drawCircle(cx-dp(8),cy-dp(14),dp(2.1f),p);
+            c.drawCircle(cx+dp(8),cy-dp(14),dp(2.1f),p);
+        }
+
+        private Path line(float x1,float y1,float x2,float y2){
+            Path q=new Path();
+            q.moveTo(x1,y1);
+            q.lineTo(x2,y2);
+            return q;
         }
     }
 
