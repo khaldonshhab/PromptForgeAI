@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.08",
+  "version": "2026.10.08.1",
   "principles": [
     "Infer the user's actual goal before drafting; do not mechanically expand keywords.",
     "Add only details that improve execution and are safe to infer from context.",
@@ -17,5 +17,25 @@
   "tool_updates": [
     "Treat this knowledge layer as mutable configuration. New entries can be published remotely without rebuilding the Android APK.",
     "When a remote knowledge document is available, prefer it over the bundled baseline."
+  ],
+  "tools": [
+    {
+      "name": "Google Flow",
+      "category": "Video",
+      "url": "https://labs.google/fx/tools/flow",
+      "profile": "video"
+    },
+    {
+      "name": "Consensus",
+      "category": "Research",
+      "url": "https://consensus.app",
+      "profile": "research"
+    },
+    {
+      "name": "SciSpace",
+      "category": "Research",
+      "url": "https://scispace.com",
+      "profile": "research"
+    }
   ]
 }
