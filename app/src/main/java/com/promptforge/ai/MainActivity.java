@@ -262,15 +262,63 @@ public class MainActivity extends Activity {
         showRoot(r);
     }
 
+    private View languageControl(){
+        FrameLayout wrap=new FrameLayout(this);
+        wrap.setBackground(rounded(PANEL2,BORDER,16));
+        wrap.setClickable(true);
+        wrap.setFocusable(true);
+
+        View flag=ar()?new SyrianFlagView(this):new UKFlagView(this);
+        FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(dp(28),dp(18));
+        fp.gravity=Gravity.CENTER_VERTICAL|Gravity.START;
+        fp.leftMargin=dp(10);
+        wrap.addView(flag,fp);
+
+        TextView label=text(ar()?"العربية":"English",13,WHITE,true);
+        label.setGravity(Gravity.CENTER);
+        label.setTextDirection(ar()?View.TEXT_DIRECTION_RTL:View.TEXT_DIRECTION_LTR);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,-1);
+        tp.leftMargin=dp(40); tp.rightMargin=dp(8);
+        wrap.addView(label,tp);
+
+        wrap.setContentDescription(ar()?"تغيير لغة التطبيق":"Change app language");
+        wrap.setOnClickListener(v->languageDialog());
+        return wrap;
+    }
+
     private void languageDialog(){
-        TextView arItem=text("العربية",17,WHITE,true);
+        LinearLayout box=new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18),dp(8),dp(18),dp(8));
+
+        LinearLayout arRow=languageRow(new SyrianFlagView(this),"العربية");
+        arRow.setOnClickListener(v->{lang="ar";s.lang(lang);loginScreen();});
+        box.addView(arRow,new LinearLayout.LayoutParams(-1,dp(58)));
+
+        addGap(box,8);
+        LinearLayout enRow=languageRow(new UKFlagView(this),"English");
+        enRow.setOnClickListener(v->{lang="en";s.lang(lang);loginScreen();});
+        box.addView(enRow,new LinearLayout.LayoutParams(-1,dp(58)));
+
         new AlertDialog.Builder(this)
             .setTitle(tr("لغة التطبيق","App language"))
-            .setItems(new String[]{"العربية","English"},(d,w)->{
-                lang=w==0?"ar":"en";
-                s.lang(lang);
-                loginScreen();
-            }).show();
+            .setView(box)
+            .setNegativeButton(tr("إلغاء","Cancel"),null)
+            .show();
+    }
+
+    private LinearLayout languageRow(View flag,String label){
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12),0,dp(12),0);
+        row.setBackground(rounded(PANEL2,BORDER,14));
+
+        row.addView(flag,new LinearLayout.LayoutParams(dp(30),dp(20)));
+        TextView t=text(label,16,WHITE,true);
+        t.setGravity(Gravity.CENTER);
+        t.setTextDirection(label.equals("English")?View.TEXT_DIRECTION_LTR:View.TEXT_DIRECTION_RTL);
+        row.addView(t,new LinearLayout.LayoutParams(0,dp(52),1));
+        return row;
     }
 
     private void home(){
@@ -284,13 +332,10 @@ public class MainActivity extends Activity {
 brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         top.addView(brand,brp);
 
-        TextView langBtn=button(languageLabel(),false);
-        langBtn.setTextSize(13);
-        langBtn.setTextDirection(ar()?View.TEXT_DIRECTION_RTL:View.TEXT_DIRECTION_LTR);
+        View langBtn=languageControl();
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
         lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
         top.addView(langBtn,lp);
-        langBtn.setOnClickListener(v->languageDialog());
         r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
 
         addGap(r,4);
@@ -538,15 +583,21 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         TextView brand=text("PromptForge AI",25,WHITE,true);
         brand.setGravity(Gravity.CENTER);
         brand.setTextDirection(View.TEXT_DIRECTION_LTR);
-        top.addView(brand,new FrameLayout.LayoutParams(-1,dp(54)));
-        TextView langBtn=button(ar()?"العربية":"English",false);
-        langBtn.setTextSize(13);
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(92),dp(44));
+        FrameLayout.LayoutParams br=new FrameLayout.LayoutParams(-1,dp(54));
+        br.leftMargin=dp(128); br.rightMargin=dp(128);
+        top.addView(brand,br);
+        View langBtn=languageControl();
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
         lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
         top.addView(langBtn,lp);
-        langBtn.setOnClickListener(v->languageDialog());
         r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,24);
+        addGap(r,14);
+        PromptForgeLogoView loginLogo=new PromptForgeLogoView(this);
+        LinearLayout logoHolder=new LinearLayout(this);
+        logoHolder.setGravity(Gravity.CENTER);
+        logoHolder.addView(loginLogo,new LinearLayout.LayoutParams(dp(92),dp(92)));
+        r.addView(logoHolder,new LinearLayout.LayoutParams(-1,dp(98)));
+        addGap(r,10);
         TextView head=text(tr("تسجيل الدخول","Sign in"),28,WHITE,true);
         head.setGravity(Gravity.CENTER);
         r.addView(head,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -725,6 +776,35 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 c.drawLine(cx+dp(10),y,cx+dp(24),y,p);
                 c.drawCircle(cx+dp(27),y,dp(3),p);
             }
+        }
+    }
+
+    private class UKFlagView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        UKFlagView(Context c){super(c);}
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight();
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.rgb(1,33,105)); c.drawRect(0,0,w,h,p);
+            p.setStrokeCap(Paint.Cap.SQUARE);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(Math.max(1,dp(7)));
+            p.setColor(Color.WHITE);
+            c.drawLine(0,0,w,h,p); c.drawLine(w,0,0,h,p);
+            p.setStrokeWidth(Math.max(1,dp(3)));
+            p.setColor(Color.rgb(200,16,46));
+            c.drawLine(0,0,w,h,p); c.drawLine(w,0,0,h,p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.WHITE);
+            c.drawRect(w*0.42f,0,w*0.58f,h,p);
+            c.drawRect(0,h*0.35f,w,h*0.65f,p);
+            p.setColor(Color.rgb(200,16,46));
+            c.drawRect(w*0.46f,0,w*0.54f,h,p);
+            c.drawRect(0,h*0.43f,w,h*0.57f,p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(1));
+            p.setColor(Color.argb(100,255,255,255));
+            c.drawRect(0,0,w,h,p);
         }
     }
 
