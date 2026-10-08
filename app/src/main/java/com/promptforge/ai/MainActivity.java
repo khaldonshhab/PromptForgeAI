@@ -427,12 +427,33 @@ public class MainActivity extends Activity {
         addGap(form,14);
 
         TextView login=button(tr("دخول","Sign in"),true);
+
+        LinearLayout loginProgress=new LinearLayout(this);
+        loginProgress.setGravity(Gravity.CENTER);
+        loginProgress.setVisibility(View.GONE);
+        loginProgress.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+
+        ProgressBar loginSpinner=new ProgressBar(this);
+        loginSpinner.setIndeterminate(true);
+        loginSpinner.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(CYAN));
+        loginProgress.addView(loginSpinner,new LinearLayout.LayoutParams(dp(18),dp(18)));
+
+        TextView loginStatus=text(tr("جارٍ تسجيل الدخول…","Signing in…"),12,MUTED,false);
+        loginStatus.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams statusLp=new LinearLayout.LayoutParams(-2,dp(28));
+        statusLp.setMargins(dp(8),0,0,0);
+        loginProgress.addView(loginStatus,statusLp);
+
         login.setOnClickListener(v->{
             String u=user.getText().toString().trim(),p=pass.getText().toString();
             if(u.isEmpty()||p.isEmpty()){toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter username and password"));return;}
             login.setEnabled(false);
+            login.setAlpha(0.65f);
+            loginProgress.setVisibility(View.VISIBLE);
             new RemotePromptClient().login(BASE_URL,u,p,(ok,val)->runOnUiThread(()->{
                 login.setEnabled(true);
+                login.setAlpha(1f);
+                loginProgress.setVisibility(View.GONE);
                 if(!ok){
                     String err=val==null?"":val.trim();
                     if(err.contains("auth_not_configured"))toast(tr("الخادم غير مهيأ للمصادقة","Server authentication is not configured"));
@@ -454,6 +475,7 @@ public class MainActivity extends Activity {
             }));
         });
         form.addView(login,new LinearLayout.LayoutParams(-1,dp(60)));
+        form.addView(loginProgress,new LinearLayout.LayoutParams(-1,dp(32)));
 
         TextView hint=text(tr("مساحتك الخاصة لصناعة برومبتات أدق وأقوى","Your private workspace for better prompts"),12,MUTED2,false);
         hint.setGravity(Gravity.CENTER);
