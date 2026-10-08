@@ -3,241 +3,260 @@ package com.promptforge.ai;
 public final class PromptEngine {
     private PromptEngine() {}
 
-    public static String generate(String idea, Platform p, String task, boolean ar) {
-        String x = idea == null || idea.trim().isEmpty()
-                ? (ar ? "أنشئ نتيجة احترافية لمهمتي" : "Create a professional result for my task")
-                : idea.trim();
-        String n = p == null ? "ChatGPT" : p.name;
-        String style = p == null ? "general" : p.style;
-        String t = task == null ? "General" : task;
-
-        if (is(n,"ChatGPT")) return chatgpt(x,t,ar);
-        if (is(n,"Claude")) return claude(x,t,ar);
-        if (is(n,"Gemini")) return gemini(x,t,ar);
-        if (is(n,"Grok")) return grok(x,t,ar);
-        if (is(n,"Copilot")) return copilot(x,t,ar);
-        if (is(n,"DeepSeek")) return deepseek(x,t,ar);
-        if (is(n,"Le Chat")) return lechat(x,t,ar);
-        if (is(n,"Poe")) return poe(x,t,ar);
-        if (is(n,"Meta AI")) return meta(x,t,ar);
-        if (is(n,"NotebookLM")) return notebook(x,t,ar);
-        if (is(n,"Character.AI")) return character(x,t,ar);
-        if (is(n,"Pi")) return pi(x,t,ar);
-
-        if ("image".equals(style)) return image(x,n,t,ar);
-        if ("video".equals(style)) return video(x,n,t,ar);
-        if ("voice".equals(style)) return voice(x,n,t,ar);
-        if ("music".equals(style)) return music(x,n,t,ar);
-        if ("coding".equals(style)) return coding(x,n,t,ar);
-        if ("research".equals(style)) return research(x,n,t,ar);
-        if ("marketing".equals(style)) return marketing(x,n,t,ar);
-        if ("writing".equals(style)) return writing(x,n,t,ar);
-        if ("presentations".equals(style) || "presentation".equals(style)) return presentation(x,n,t,ar);
-        if ("design".equals(style)) return design(x,n,t,ar);
-        if ("3d".equals(style)) return threeD(x,n,t,ar);
-        if ("productivity".equals(style)) return productivity(x,n,t,ar);
-        return general(x,n,t,ar);
+    private static final class Spec {
+        final String kind, guidance;
+        Spec(String kind,String guidance){this.kind=kind;this.guidance=guidance;}
     }
 
-    private static boolean is(String a,String b){return b.equalsIgnoreCase(a);}
-
-    private static String chatgpt(String x,String t,boolean ar){
-        if(ar) return "أنت مساعد خبير داخل ChatGPT.\n\n"+
-                "الهدف:\n"+x+"\n\n"+
-                "نوع المهمة:\n"+t+"\n\n"+
-                "السياق:\nاستخدم المعلومات المتاحة فقط، واستخرج الافتراضات المؤثرة قبل التنفيذ.\n\n"+
-                "القيود:\n- لا تخترع معلومات.\n- إذا كان هناك نقص مؤثر، حدده بوضوح.\n- حافظ على نية المستخدم.\n\n"+
-                "المطلوب من الإخراج:\nقدّم النتيجة النهائية مباشرة، منظمة بعناوين أو خطوات أو جدول أو كود بحسب طبيعة المهمة.";
-        return "Act as an expert assistant in ChatGPT.\n\n"+
-                "Objective:\n"+x+"\n\nTask:\n"+t+"\n\n"+
-                "Context:\nUse the available information and identify only assumptions that materially affect execution.\n\n"+
-                "Constraints:\n- Do not invent facts.\n- Flag material missing information.\n- Preserve the user's intent.\n\n"+
-                "Output requirements:\nReturn the final result directly, using the format best suited to the task.";
+    public static String generate(String idea, Platform platform, String task, boolean ar) {
+        String x=idea==null?"":idea.trim();
+        if(x.isEmpty()) x=ar?"حدّد أفضل طريقة لتنفيذ المهمة المطلوبة بدقة.":"Determine the best way to complete the requested task accurately.";
+        String n=platform==null?"ChatGPT":platform.name;
+        String k=platform==null?"general":platform.style;
+        String t=(task==null||task.trim().isEmpty())?"General":task;
+        Spec spec=specFor(n,k);
+        return render(x,n,t,ar,spec);
     }
 
-    private static String claude(String x,String t,boolean ar){
-        if(ar) return "<role>أنت خبير متخصص يعمل داخل Claude.</role>\n"+
-                "<context>المستخدم يريد تنفيذ المهمة التالية: "+x+"</context>\n"+
-                "<task>"+t+"</task>\n"+
-                "<constraints>\n- حلّل السياق قبل التنفيذ.\n- لا تفترض حقائق غير معطاة.\n- حافظ على الدقة والوضوح.\n</constraints>\n"+
-                "<output_format>قدّم نتيجة منظمة وقابلة للتنفيذ، واذكر الافتراضات المؤثرة فقط.</output_format>";
-        return "<role>You are an expert working inside Claude.</role>\n"+
-                "<context>The user wants to accomplish: "+x+"</context>\n"+
-                "<task>"+t+"</task>\n"+
-                "<constraints>\n- Analyze the supplied context before acting.\n- Do not invent facts.\n- Preserve accuracy and clarity.\n</constraints>\n"+
-                "<output_format>Return a structured, actionable result and state only material assumptions.</output_format>";
+    private static String render(String x,String n,String t,boolean ar,Spec s){
+        String taskLine="General".equalsIgnoreCase(t)?"":(ar?"\nنوع المهمة: "+t+"\n":"\nTask type: "+t+"\n");
+        if("chat".equals(s.kind)) return chat(x,t,ar,s.guidance)+taskLine;
+        if("claude".equals(s.kind)) return claude(x,t,ar,s.guidance);
+        if("research".equals(s.kind)) return research(x,t,ar,s.guidance);
+        if("image".equals(s.kind)) return image(x,t,ar,s.guidance);
+        if("video".equals(s.kind)) return video(x,t,ar,s.guidance);
+        if("voice".equals(s.kind)) return voice(x,t,ar,s.guidance);
+        if("music".equals(s.kind)) return music(x,t,ar,s.guidance);
+        if("coding".equals(s.kind)) return coding(x,t,ar,s.guidance);
+        if("marketing".equals(s.kind)) return marketing(x,t,ar,s.guidance);
+        if("writing".equals(s.kind)) return writing(x,t,ar,s.guidance);
+        if("presentation".equals(s.kind)) return presentation(x,t,ar,s.guidance);
+        if("design".equals(s.kind)) return design(x,t,ar,s.guidance);
+        if("productivity".equals(s.kind)) return productivity(x,t,ar,s.guidance);
+        if("3d".equals(s.kind)) return threeD(x,t,ar,s.guidance);
+        return general(x,t,ar,s.guidance);
     }
 
-    private static String gemini(String x,String t,boolean ar){
-        if(ar) return "# الهدف\n"+x+"\n\n"+
-                "# المهمة\n"+t+"\n\n"+
-                "# السياق\nضع المعلومات المتاحة هنا وافصلها بوضوح عن التعليمات.\n\n"+
-                "# القيود\n- كن مباشراً ودقيقاً.\n- لا تضف افتراضات غير ضرورية.\n- عرّف أي مصطلح أو معيار غامض.\n\n"+
-                "# شكل الإخراج\nحدّد البنية المطلوبة بوضوح، ثم نفّذ المهمة.\n\n"+
-                "# التعليمات النهائية\nاعتمد على السياق أعلاه ونفّذ المهمة بأفضل نتيجة ممكنة.";
-        return "# Goal\n"+x+"\n\n"+
-                "# Task\n"+t+"\n\n"+
-                "# Context\nPlace the supplied information here and keep it clearly separated from instructions.\n\n"+
-                "# Constraints\n- Be direct and precise.\n- Avoid unnecessary assumptions.\n- Define ambiguous terms or criteria.\n\n"+
-                "# Output format\nSpecify the required structure clearly, then execute the task.\n\n"+
-                "# Final instruction\nUsing the context above, complete the task with the best possible result.";
+    private static String chat(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+
+                (t.equals("General")?"":"نفّذ ذلك ضمن إطار مهمة "+t+"."+"\n\n")+
+                "اعتمد على السياق المتاح، وميّز بين المعلومات المؤكدة والافتراضات المؤثرة. "+g+"\n"+
+                "حافظ على المقصود الأصلي ولا تضف متطلبات غير لازمة. إذا كانت هناك معلومة ناقصة وتؤثر فعلاً في النتيجة، اطلبها أو صرّح بالافتراض بوضوح.\n"+
+                "أخرج النتيجة النهائية مباشرة وبالبنية الأنسب للمهمة، من دون مقدمة عن البرومبت أو عن المنصة.";
+        return x+"\n\n"+
+                (t.equals("General")?"":"Execute this as a "+t+" task.\n\n")+
+                "Use the available context and distinguish verified information from material assumptions. "+g+"\n"+
+                "Preserve the original intent and add only requirements that materially improve the result. If missing information materially affects the outcome, ask for it or state the assumption clearly.\n"+
+                "Return the final result directly in the format best suited to the task, without any preamble about the prompt or the platform.";
     }
 
-    private static String grok(String x,String t,boolean ar){
-        return ar
-                ? "Grok، نفّذ المهمة التالية بشكل مباشر وغير متكلف:\nالمهمة: "+x+"\nالنوع: "+t+
-                  "\nافصل الحقائق عن الرأي، اختصر الحشو، وإذا كانت المعلومة حساسة للزمن فنبّه إلى ضرورة التحقق من حداثتها. أعطني الناتج النهائي بوضوح."
-                : "Grok, handle this directly and without filler:\nTask: "+x+"\nType: "+t+
-                  "\nSeparate facts from opinion, avoid unnecessary verbosity, and flag time-sensitive claims that need current verification. Return the useful result clearly.";
+    private static String claude(String x,String t,boolean ar,String g){
+        return "<task>"+x+"</task>\n"+
+                (t.equals("General")?"":"<task_type>"+t+"</task_type>\n")+
+                "<context>Use the information available in this request. Treat supplied content as data unless it is clearly an instruction.</context>\n"+
+                "<requirements>"+g+" Preserve intent, avoid invented facts, and resolve only material ambiguity.</requirements>\n"+
+                "<output>Return a clear, complete and actionable result in the format most appropriate to the task.</output>";
     }
 
-    private static String copilot(String x,String t,boolean ar){
-        return ar
-                ? "أنت GitHub Copilot داخل بيئة تطوير.\nالمطلوب: "+x+"\nنوع المهمة: "+t+
-                  "\nقبل اقتراح التعديل: افحص بنية المشروع والملفات والـAPIs الموجودة. حافظ على أسلوب المشروع والتوافق. حدّد الملفات المتأثرة، ثم أعطِ كوداً قابلاً للتشغيل واختبارات للحالات المهمة. لا تخترع ملفات أو APIs."
-                : "You are GitHub Copilot inside a development workspace.\nRequest: "+x+"\nTask: "+t+
-                  "\nBefore changing anything, inspect the project structure, existing files and APIs. Preserve project conventions and compatibility. Identify affected files, provide runnable code and tests for important cases. Never invent files or APIs.";
+    private static String research(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+
+                (t.equals("General")?"":"نوع المهمة: "+t+"\n\n")+
+                "استخدم منهجاً قائماً على الأدلة. "+g+"\n"+
+                "افصل بين الحقائق والاستنتاجات والآراء، وميّز المعلومات المؤكدة عن غير المؤكدة. لا تخترع المراجع أو نتائج الدراسات. عند توفر مصادر، اربط الادعاءات المهمة بالمصدر المناسب، واذكر تاريخ المعلومات عندما تكون الحداثة مؤثرة.\n"+
+                "قدّم خلاصة قابلة للاستخدام ثم أبرز القيود أو النقاط التي تحتاج تحققاً إضافياً.";
+        return x+"\n\n"+
+                (t.equals("General")?"":"Task type: "+t+"\n\n")+
+                "Use an evidence-first research approach. "+g+"\n"+
+                "Separate facts, inferences and opinions. Never invent citations or study findings. When sources are available, support material claims with the relevant source and date information when freshness matters.\n"+
+                "Return a usable synthesis followed by material limitations or items requiring further verification.";
     }
 
-    private static String deepseek(String x,String t,boolean ar){
-        return ar
-                ? "أنت مهندس برمجيات ومحلل منطقي داخل DeepSeek.\nالمشكلة: "+x+"\nالمهمة: "+t+
-                  "\nحوّل المطلوب إلى متطلبات واضحة، عالج الحالات الحدية، تحقق من صحة الحل، ثم أعطِ التنفيذ النهائي. لا تعرض سلسلة التفكير الداخلية؛ أعطِ الاستنتاجات والخطوات القابلة للتنفيذ فقط."
-                : "You are a software engineer and rigorous problem solver in DeepSeek.\nProblem: "+x+"\nTask: "+t+
-                  "\nConvert the request into explicit requirements, handle edge cases, validate the solution, then provide the final implementation. Do not expose private chain-of-thought; provide actionable conclusions and steps only.";
+    private static String image(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" اجعل الوصف بصرياً ومحدداً، واذكر فقط العناصر التي تزيد التحكم في النتيجة. استخدم اللغة أو البنية التي تناسب الأداة، ولا تستورد معاملات أو صياغة من أداة أخرى.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Keep the prompt visual and specific, adding only details that materially improve control. Use the target tool's native style and never import parameters or syntax from another tool.";
     }
 
-    private static String lechat(String x,String t,boolean ar){
-        return ar ? "نفّذ في Le Chat:\nالمطلوب: "+x+"\nالمهمة: "+t+"\nأعطِ جواباً دقيقاً ومختصراً مع بنية واضحة، ووسّع التفاصيل فقط عندما تخدم النتيجة."
-                   : "Execute in Le Chat:\nRequest: "+x+"\nTask: "+t+"\nGive a precise, concise answer with clear structure; expand only where it improves the result.";
+    private static String video(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" رتّب العناصر حسب منطق اللقطة: ما يظهر في الإطار، حركة الموضوع، حركة الكاميرا، البيئة والإضاءة، ثم التسلسل الزمني والنهاية عند الحاجة. استخدم عبارات إيجابية ومباشرة، ولا تضف Negative Prompt إلا إذا كانت الأداة تدعمه صراحةً.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Organize the shot around what is visible, subject motion, camera motion, environment and lighting, then temporal progression and ending when useful. Prefer positive, direct language and never add a negative-prompt section unless the target tool explicitly supports it.";
     }
 
-    private static String poe(String x,String t,boolean ar){
-        return ar ? "استخدم Poe للوصول إلى أفضل استجابة من النموذج/البوت المستهدف.\nالفكرة: "+x+"\nالمهمة: "+t+"\nاكتب الطلب بشكل مستقل عن نموذج بعينه، وحدد الهدف والسياق والقيود وشكل الإخراج حتى يبقى قابلاً للنقل بين البوتات."
-                   : "Use Poe to obtain the best response from the selected bot/model.\nIdea: "+x+"\nTask: "+t+"\nMake the request model-agnostic while explicitly defining objective, context, constraints and output format.";
+    private static String voice(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد أسلوب الإلقاء، السرعة، الإيقاع، النبر، الوقفات والنطق عند الحاجة. لا تدّعِ أن النص يغيّر إعدادات الصوت التي تتحكم بها واجهة الأداة. أبقِ النص المنطوق منفصلاً عن توجيهات الأداء عندما يكون ذلك مفيداً.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Specify delivery, pace, rhythm, emphasis, pauses and pronunciation when relevant. Do not pretend the prompt can change voice settings controlled by the tool UI. Keep spoken content distinct from delivery direction when useful.";
     }
 
-    private static String meta(String x,String t,boolean ar){
-        return ar ? "ساعدني عبر Meta AI في التالي:\n"+x+"\nنوع المهمة: "+t+"\nكن طبيعياً ومباشراً، حافظ على السياق، وقدّم نتيجة عملية بدون تعليمات تقنية غير لازمة."
-                   : "Help me with this in Meta AI:\n"+x+"\nTask: "+t+"\nBe natural and direct, preserve context, and provide a practical result without unnecessary technical prompt jargon.";
+    private static String music(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد النوع والمزاج والسرعة والآلات والبنية والشخصية الصوتية والإنتاج عند ارتباطها بالمطلوب. عند وجود كلمات أغنية، افصل الكلمات عن وصف الأسلوب بما يتوافق مع واجهة الأداة، ولا تخترع معاملات.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Specify genre, mood, tempo, instrumentation, structure, vocal character and production when relevant. When lyrics are supplied, separate lyrics from style direction in the way the tool supports, and do not invent parameters.";
     }
 
-    private static String notebook(String x,String t,boolean ar){
-        return ar ? "اعمل داخل NotebookLM اعتماداً على المصادر التي أرفقتها فقط.\nالسؤال/الفكرة: "+x+"\nالمهمة: "+t+
-                "\nاستخرج الأدلة من المصادر، اربط كل ادعاء مهم بمصدره عندما يكون ممكناً، وميّز بوضوح بين ما تقوله المصادر وما هو استنتاج."
-                : "Work in NotebookLM using only the sources I provided.\nQuestion/idea: "+x+"\nTask: "+t+
-                "\nGround important claims in the supplied sources when possible, and clearly distinguish source evidence from inference.";
+    private static String coding(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" افحص السياق البرمجي المتاح قبل اقتراح التعديل، وحدد الملفات أو المكونات المتأثرة ومعايير القبول. حافظ على الأنماط والـAPIs الموجودة، واذكر الاختبارات أو خطوات التحقق المناسبة. لا تخترع سياقاً غير متاح ولا تكشف سلسلة التفكير الداخلية.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Inspect the available coding context before proposing changes, identify affected files or components and acceptance criteria. Preserve existing conventions and APIs, include appropriate tests or verification steps, and never invent unavailable context or expose private chain-of-thought.";
     }
 
-    private static String character(String x,String t,boolean ar){
-        return ar ? "الشخصية المطلوبة: حافظ على شخصية الحوار وسياقها داخل Character.AI.\nالموقف: "+x+"\nالمهمة: "+t+
-                "\nاجعل الرد متسقاً مع الشخصية، طبيعياً وحوارياً، ولا تكسر الشخصية إلا إذا طلب المستخدم ذلك."
-                : "Stay in character inside Character.AI.\nSituation: "+x+"\nTask: "+t+
-                "\nKeep the character's voice and context consistent, natural and conversational unless the user explicitly requests a break.";
+    private static String marketing(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد الجمهور والعرض والمرحلة والرسالة والقناة والنبرة والدعوة إلى الإجراء. اطلب مخرجات قابلة للقياس عندما يكون ذلك مناسباً، واحذف الحشو التسويقي العام.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Define audience, offer, funnel or awareness stage, message, channel, tone and CTA. Request measurable outputs when useful and avoid generic marketing filler.";
     }
 
-    private static String pi(String x,String t,boolean ar){
-        return ar ? "تحدث معي داخل Pi حول التالي: "+x+"\nالمهمة: "+t+"\nكن ودوداً وطبيعياً، اسأل سؤالاً واحداً فقط إذا كان ضرورياً، ثم ساعدني عملياً."
-                   : "Talk with me in Pi about: "+x+"\nTask: "+t+"\nBe warm and natural, ask only one necessary clarifying question, then help practically.";
+    private static String writing(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حافظ على المعنى وصوت الكاتب ما لم يُطلب خلاف ذلك، وحدد الجمهور والطول والبنية والنبرة ومعايير الجودة عندما تكون مؤثرة.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Preserve meaning and author voice unless change is requested, and define audience, length, structure, tone and quality criteria when material.";
     }
 
-    private static String general(String x,String n,String t,boolean ar){
-        return ar ? "أنت مساعد متخصص داخل "+n+".\nالمطلوب: "+x+"\nنوع المهمة: "+t+
-                "\nحدّد الهدف والسياق والقيود وشكل الإخراج، ثم نفّذ النتيجة دون حشو."
-                : "You are a specialized assistant inside "+n+".\nRequest: "+x+"\nTask: "+t+
-                "\nDefine objective, context, constraints and output format, then produce the result without filler.";
+    private static String presentation(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" ابنِ تسلسلاً واضحاً للرسالة، مع تحديد الجمهور والهدف وعدد الشرائح وكثافة المحتوى ورسالة كل شريحة والعناصر البصرية المناسبة.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Build a clear narrative sequence with audience, objective, slide count, content density, one core message per slide and appropriate visual direction.";
     }
 
-    private static String research(String x,String n,String t,boolean ar){
-        return (ar?"أنت باحث متخصص يعمل داخل ":"You are a rigorous research assistant working in ")+n+"."+
-                (ar?"\nسؤال البحث: ":"\nResearch question: ")+x+"\n"+(ar?"نوع المهمة: ":"Task: ")+t+
-                (ar?"\nافصل الحقائق والاستنتاجات والآراء، استخدم الأدلة القابلة للتحقق، لا تخترع المصادر، واذكر ما يحتاج إلى تحقق إضافي.":"\nSeparate facts, inferences and opinions; use verifiable evidence, never invent citations, and flag what needs verification.");
+    private static String design(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد الاستخدام النهائي والمقاس والتكوين والتسلسل البصري والخطوط والألوان والمكونات والتباعد والقيود الإنتاجية عندما تكون ذات صلة.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Specify end use, dimensions, composition, hierarchy, typography, palette, components, spacing and production constraints when relevant.";
     }
 
-    private static String image(String x,String n,String t,boolean ar){
-        if ("Midjourney".equals(n)) return (ar?"حوّل الفكرة إلى Prompt أصلي لـ Midjourney: ":"Create a native Midjourney prompt from: ")+x+
-                "\n"+(ar?"المطلوب: الموضوع، البيئة، التكوين، المنظور/العدسة عند الحاجة، الإضاءة، الخامة، المزاج والأسلوب. استخدم معاملات Midjourney فقط عندما تخدم الفكرة، ولا تستخدم Negative Prompt بصيغة Stable Diffusion.":"Include subject, environment, composition, camera/perspective when useful, lighting, material, mood and style. Use Midjourney parameters only when justified; never use Stable Diffusion negative-prompt syntax.")+
-                "\n"+t;
-        if ("Stable Diffusion".equals(n)) return (ar?"حوّل الفكرة إلى Prompt لـ Stable Diffusion/SDXL:\nPositive Prompt: ":"Create a Stable Diffusion/SDXL prompt:\nPositive Prompt: ")+x+
-                "\n"+(ar?"Negative Prompt: تشوهات وتشويش وأخطاء شائعة مناسبة للمشهد. استخدم الأوزان فقط عند الحاجة ولا تستخدم أعلام Midjourney.":"Negative Prompt: scene-appropriate common defects. Use weighting only when useful and never add Midjourney flags.")+
-                "\nTask: "+t;
-        if ("Ideogram".equals(n)) return (ar?"أنشئ Prompt لـ Ideogram للفكرة التالية: ":"Create an Ideogram prompt for: ")+x+
-                (ar?". ركّز على التكوين والنص داخل الصورة عند وجوده، واكتب النص المطلوب حرفياً.":" Focus on composition and any text inside the image; preserve required text exactly.");
-        if ("Adobe Firefly".equals(n)) return (ar?"اكتب موجزاً بصرياً أصلياً لـ Adobe Firefly: ":"Create a native Adobe Firefly visual brief: ")+x+"\n"+(ar?"الموضوع، التكوين، الخلفية، الأسلوب، الإضاءة، الألوان، والاستخدام النهائي. لا تستخدم صيغة Midjourney أو Stable Diffusion.":"Subject, composition, background, style, lighting, colors and intended use. Do not use Midjourney or Stable Diffusion syntax.");
-        if ("Leonardo AI".equals(n)) return (ar?"أنشئ Prompt متخصصاً لـ Leonardo AI: ":"Create a Leonardo AI prompt: ")+x+"\n"+(ar?"حدّد الموضوع والتكوين والأسلوب والإضاءة والخامة والتفاصيل ومستوى الواقعية، من دون اختراع معاملات غير معروفة.":"Specify subject, composition, style, lighting, materials, detail and realism without inventing unsupported parameters.");
-        if ("FLUX".equals(n)) return (ar?"أنشئ Prompt طبيعي ومكثف لـ FLUX: ":"Create a concise natural-language FLUX prompt: ")+x+"\n"+(ar?"ركّز على وصف بصري واضح، التكوين، الإضاءة، الأسلوب والنص داخل الصورة عند الحاجة، بلا أعلام منصات أخرى.":"Focus on clear visual description, composition, lighting, style and exact text when needed, with no foreign platform flags.");
-        if ("Krea".equals(n)) return (ar?"أنشئ Prompt لـ Krea يحدد هدف التوليد أو التعديل، الصورة المرجعية إن وجدت، التكوين والأسلوب والتحويل المطلوب: ":"Create a Krea prompt specifying generation/edit intent, reference image if any, composition, style and desired transformation: ")+x;
-        if ("Magnific".equals(n)) return (ar?"حوّل الفكرة إلى تعليمات تحسين صورة لـ Magnific، مع التركيز على استعادة التفاصيل والخامة والوضوح والواقعية، وليس توليد مشهد جديد: ":"Turn this into a Magnific image-enhancement instruction focused on detail recovery, texture, clarity and realism rather than inventing a new scene: ")+x;
-        if ("Photoroom".equals(n)) return (ar?"أنشئ موجزاً لـ Photoroom لصور المنتجات: ":"Create a Photoroom product-image brief: ")+x+"\n"+(ar?"حدّد المنتج، الخلفية، الإضاءة، التكوين والاستخدام التجاري، وحافظ على هوية المنتج.":"Specify product, background, lighting, composition and commercial use while preserving product identity.");
-        if ("Looka".equals(n)) return (ar?"أنشئ موجز هوية بصرية لـ Looka: ":"Create a Looka brand-identity brief: ")+x+"\n"+(ar?"حدد اسم العلامة، المجال، الجمهور، الشخصية، فكرة الشعار، الرمز، الخطوط وسياق الاستخدام.":"Specify brand name, industry, audience, personality, logo concept, symbol, typography and use context.");
-        return (ar?"أنشئ Prompt صورة متخصصاً لـ "+n+": ":"Create a platform-specific image prompt for "+n+": ")+x+
-                (ar?". حدّد الموضوع والبيئة والتكوين والإضاءة والألوان والخامات والمنظور والأسلوب، ولا تستخدم معاملات منصة أخرى.":" Include subject, environment, composition, lighting, palette, materials, perspective and style; do not import syntax from another platform.");
+    private static String productivity(String x,String t,boolean ar,String g){
+        return x+"\n\n"+(t.equals("General")?"":(ar?"المهمة: ":"Task: ")+t+"\n")+
+                (ar?g+" حوّل المطلوب إلى خطوات وقرارات ومخرجات قابلة للتنفيذ، مع الحفاظ على بنية البيانات أو مساحة العمل الحالية.":" "+g+" Turn the request into actionable steps, decisions and structured outputs while preserving the existing workspace or data structure.");
     }
 
-    private static String video(String x,String n,String t,boolean ar){
-        String focus="Runway".equals(n)?"image-to-video motion, shot design and camera movement":"Google Veo".equals(n)?"realistic physics, cinematic continuity and temporal coherence":"Kling AI".equals(n)?"subject identity, controlled motion and physical interaction":"Pika".equals(n)?"action/effect clarity, transformation and timing":"Luma Dream Machine".equals(n)?"cinematic camera movement and natural motion":"Vidu".equals(n)?"character consistency and controlled motion":"LTX Studio".equals(n)?"shot planning, transitions and continuity":"Haiper".equals(n)?"clear subject motion and camera direction":"PixVerse".equals(n)?"motion effects, subject consistency and timing":"motion, camera and temporal order";
-        return (ar?"أنشئ Prompt فيديو أصلياً لـ ":"Create a native video prompt for ")+n+"."+
-                "\n"+(ar?"الفكرة: ":"Idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+
-                "\n"+(ar?"تركيز المنصة: ":"Platform focus: ")+focus+
-                "\n"+(ar?"رتّب الوصف زمنياً: الكادر، حركة الكاميرا، حركة الموضوع، البيئة والإضاءة، ثم الانتقال/النهاية.":"Describe in temporal order: framing, camera movement, subject motion, environment/lighting, then transition or ending.");
+    private static String threeD(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد الهندسة والنسب والخامة وتفاصيل السطح والإضاءة والكاميرا والخلفية وزاوية العرض ومستوى التفاصيل المطلوب.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Specify geometry, proportions, materials, surface detail, lighting, camera, background, view angle and required detail level.";
     }
 
-    private static String voice(String x,String n,String t,boolean ar){
-        String focus="ElevenLabs".equals(n)?"voice identity, emotion, pacing, pronunciation and pauses":"PlayHT".equals(n)?"voice style, delivery, pacing and pronunciation":"Cartesia".equals(n)?"voice character, prosody and emotional state":"Murf".equals(n)?"narration role, audience, emphasis and delivery":"Speechify".equals(n)?"reading style, pacing and pronunciation":"voice identity, age, tone, pace, rhythm, emotion and pronunciation";
-        return (ar?"أنشئ Prompt صوت/TTS مخصصاً لـ ":"Create a native voice/TTS prompt for ")+n+"."+"\n"+(ar?"النص/الفكرة: ":"Text/idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+"\n"+(ar?"تركيز الأداة: ":"Tool focus: ")+focus+"\n"+(ar?"افصل النص المنطوق عن تعليمات الأداء، ولا تستخدم صيغة أداة صوت أخرى.":"Keep spoken text separate from delivery direction and do not import syntax from another voice tool.");
+    private static String general(String x,String t,boolean ar,String g){
+        if(ar) return x+"\n\n"+(t.equals("General")?"":"المهمة: "+t+"\n")+
+                g+" حدّد ما هو ضروري فقط، وحافظ على نية المستخدم، وقدّم مخرجاً واضحاً قابلاً للاستخدام.";
+        return x+"\n\n"+(t.equals("General")?"":"Task: "+t+"\n")+
+                g+" Include only what is necessary, preserve user intent and return a clear, usable output.";
     }
 
-    private static String music(String x,String n,String t,boolean ar){
-        String focus="Suno".equals(n)?"genre/style, mood, tempo, instrumentation, vocal character and lyrics":"Udio".equals(n)?"compact genre/mood/instrument tags plus separate lyrics/guidance":"Stable Audio".equals(n)?"audio event, texture, instrumentation, structure and duration":"genre, mood, tempo, instrumentation, structure, vocals and production";
-        return (ar?"أنشئ Prompt موسيقى أصلياً لـ ":"Create a native music prompt for ")+n+"."+"\n"+(ar?"الفكرة: ":"Idea: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+"\n"+(ar?"تركيز الأداة: ":"Tool focus: ")+focus+"\n"+(ar?"افصل الكلمات عن وصف الأسلوب عند الحاجة ولا تستخدم صيغة منصة موسيقية أخرى.":"Separate lyrics from style direction when needed and do not import syntax from another music platform.");
-    }
+    private static Spec specFor(String n,String fallback){
+        if("ChatGPT".equals(n)) return new Spec("chat","Use clear objective, relevant context, explicit constraints, and a concrete output contract. Start with the task rather than a role-play preamble.");
+        if("Claude".equals(n)) return new Spec("claude","Use concise XML-style sections to separate task, context, requirements and output. Keep data separate from instructions.");
+        if("Gemini".equals(n)) return new Spec("chat","Be precise and direct. Use one consistent structure, define ambiguous parameters, and keep critical instructions near the beginning.");
+        if("Grok".equals(n)) return new Spec("chat","Prefer direct natural language, separate facts from opinions, and flag claims that require current verification.");
+        if("Perplexity".equals(n)) return new Spec("research","Treat the task as web-grounded research. Ask for current, source-supported findings and transparent uncertainty.");
+        if("Copilot".equals(n)) return new Spec("chat","State the desired result clearly and use concise context. When code or repositories are involved, reference the actual workspace context instead of inventing it.");
+        if("Meta AI".equals(n)) return new Spec("chat","Use natural conversational wording with sufficient context. Avoid unnecessary prompt-engineering jargon.");
+        if("DeepSeek".equals(n)) return new Spec("chat","Define requirements, edge cases, validation criteria and the final deliverable. Never request hidden chain-of-thought.");
+        if("Le Chat".equals(n)) return new Spec("chat","Keep the instruction concise, explicit and outcome-focused.");
+        if("Poe".equals(n)) return new Spec("chat","Make the request portable across the selected bot while preserving clear objective, context, constraints and output expectations.");
+        if("NotebookLM".equals(n)) return new Spec("research","Ground claims in the supplied notebook sources. Distinguish source evidence from inference and do not import unsupported outside facts.");
+        if("Character.AI".equals(n)) return new Spec("chat","Preserve character voice, relationship context and conversational continuity. Do not break character unless the request requires it.");
+        if("Pi".equals(n)) return new Spec("chat","Use warm, natural conversational language. Ask at most one necessary clarification before helping when ambiguity blocks the task.");
 
-    private static String coding(String x,String n,String t,boolean ar){
-        String focus="Cursor".equals(n)?"repository context, relevant files, current behavior, implementation plan and verification":"GitHub Copilot".equals(n)?"workspace/repository context, relevant files, existing APIs, acceptance criteria and tests":"Claude Code".equals(n)?"agentic repository change, files to inspect, constraints, verification commands and stopping conditions":"Windsurf".equals(n)?"workspace context, affected files, safe execution and verification":"Replit".equals(n)?"current project/runtime, user-visible behavior, implementation and verification":"Amazon Q Developer".equals(n)?"project/runtime plus AWS resources, security and validation":"Gemini Code Assist".equals(n)?"IDE/project context, selected code/files, compatibility and tests":"Tabnine".equals(n)?"local code context, language/framework constraints and expected behavior":"project structure, existing APIs, affected files, runnable changes and tests";
-        return (ar?"أنت مهندس برمجيات يعمل داخل ":"You are a senior software engineer working inside ")+n+"."+"\n"+(ar?"المطلوب: ":"Request: ")+x+"\n"+(ar?"المهمة: ":"Task: ")+t+"\n"+(ar?"تركيز الأداة: ":"Tool focus: ")+focus+"\n"+(ar?"افحص السياق المتاح، حافظ على التوافق، حدّد الملفات المتأثرة ومعايير القبول، ثم أعطِ تنفيذاً قابلاً للتشغيل واختبارات عند الحاجة. لا تخترع APIs.":"Inspect available context, preserve compatibility, identify affected files and acceptance criteria, then provide runnable changes and tests when appropriate. Never invent APIs.");
-    }
+        if("Midjourney".equals(n)) return new Spec("image","Keep the prompt visual and relatively concise. Specify subject, medium, environment, composition, lighting, color and mood; use Midjourney parameters only at the end when they materially help, and never use Stable Diffusion negative-prompt syntax.");
+        if("Adobe Firefly".equals(n)) return new Spec("image","Use a natural visual brief covering subject, composition, background, style, lighting, color and intended use. Do not import syntax from other image generators.");
+        if("Ideogram".equals(n)) return new Spec("image","Prioritize exact in-image text, typography, layout, subject placement and legibility. Preserve required wording verbatim.");
+        if("Leonardo AI".equals(n)) return new Spec("image","Specify subject, composition, style, lighting, materials, detail and realism. Do not invent undocumented flags.");
+        if("FLUX".equals(n)) return new Spec("image","Prefer strong natural-language visual description, clear spatial relationships, lighting, style and exact text when needed; avoid foreign platform flags.");
+        if("Stable Diffusion".equals(n)) return new Spec("image","Use a clear positive prompt and a separate negative prompt only because this workflow supports that distinction. Describe scene-specific defects in the negative section and do not use Midjourney parameters. Prefer English for best consistency.");
+        if("Recraft".equals(n)) return new Spec("image","Treat the request as a design-oriented visual brief. Prioritize style, composition, typography, vector or raster intent, brand constraints and editable-use considerations when relevant.");
+        if("Krea".equals(n)) return new Spec("image","State whether the goal is generation, editing or enhancement, then describe the source/reference, desired composition, style and transformation.");
+        if("Canva AI".equals(n)) return new Spec("design","Specify content type, dimensions, audience, copy, hierarchy, palette, typography and editable layout intent.");
+        if("Freepik AI".equals(n)) return new Spec("image","Use a commercial visual brief with subject, composition, style, lighting, palette, negative space and asset purpose when relevant.");
+        if("Magnific".equals(n)) return new Spec("image","Treat the request as enhancement or upscaling: prioritize detail recovery, texture, sharpness and realism while preserving the source instead of inventing a new scene.");
 
-    private static String marketing(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt تسويق متخصصاً لـ ":"Create a marketing-native prompt for ")+n+"."+
-                (ar?"\nالمنتج/الفكرة: ":"\nProduct/idea: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد الجمهور والعرض ومرحلة الوعي والقناة والرسالة والنبرة وCTA والقيود، واطلب مخرجات قابلة للقياس.":"\nSpecify audience, offer, awareness stage, channel, message, tone, CTA and constraints; request measurable outputs.");
-    }
+        if("Runway".equals(n)) return new Spec("video","For video, prioritize visible action, subject motion, camera movement and temporal progression. For image-to-video, treat the input image as the composition and use the text prompt primarily to describe motion. Avoid negative prompts.");
+        if("Google Veo".equals(n)) return new Spec("video","Prioritize coherent shot design, realistic physics, camera language, subject action, environment, lighting, dialogue or audio only when requested, and temporal continuity.");
+        if("Kling AI".equals(n)) return new Spec("video","Prioritize subject identity, controlled movement, physical interaction, camera direction and temporal consistency. Keep each action physically coherent.");
+        if("Pika".equals(n)) return new Spec("video","Focus on the visible action or transformation, timing, framing and effect. Keep the instruction concise and unambiguous.");
+        if("Luma Dream Machine".equals(n)) return new Spec("video","Prioritize cinematic camera movement, natural motion, spatial continuity and shot progression. Keep subject motion physically plausible.");
+        if("Hailuo AI".equals(n)) return new Spec("video","Specify the subject action, camera movement, scene continuity and visual style. Keep temporal order explicit.");
+        if("PixVerse".equals(n)) return new Spec("video","Prioritize motion effect, subject consistency, camera direction, framing and timing. Avoid unnecessary prose.");
+        if("Haiper".equals(n)) return new Spec("video","Prioritize clear subject motion, camera direction, environment and concise temporal instructions.");
+        if("Vidu".equals(n)) return new Spec("video","Prioritize character or object consistency, controlled movement, shot continuity and explicit sequence of actions.");
+        if("LTX Studio".equals(n)) return new Spec("video","Treat the request as shot planning: scene, shot purpose, camera, action, dialogue or audio when relevant, transitions and continuity.");
 
-    private static String writing(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt كتابة/تحرير مخصصاً لـ ":"Create a writing/editing prompt optimized for ")+n+"."+
-                (ar?"\nالمحتوى: ":"\nContent: ")+x+"\nTask: "+t+
-                (ar?"\nحافظ على المعنى والصوت ما لم يُطلب تغييره، وحدد الجمهور والطول والبنية والنبرة ومعايير الجودة.":"\nPreserve meaning and voice unless change is requested; define audience, length, structure, tone and quality criteria.");
-    }
+        if("ElevenLabs".equals(n)) return new Spec("voice","Separate spoken text from delivery direction. Cover voice character, emotion, pacing, pronunciation and pauses when relevant; remember voice selection and many controls are platform settings.");
+        if("PlayHT".equals(n)) return new Spec("voice","Specify voice style, delivery, pacing, emotion and pronunciation. Keep the spoken script explicit and do not invent provider syntax.");
+        if("Cartesia".equals(n)) return new Spec("voice","Specify voice character, emotional state, prosody, pacing and pronunciation, while keeping platform settings separate from the text prompt.");
+        if("Fish Audio".equals(n)) return new Spec("voice","Specify voice identity, style, emotion, pacing, pronunciation and exact spoken material, without borrowing syntax from another voice tool.");
+        if("Murf".equals(n)) return new Spec("voice","Specify narration role, audience, pace, emphasis, pronunciation and delivery context. Keep the script distinct from performance direction.");
+        if("Speechify".equals(n)) return new Spec("voice","Specify reading style, pacing, pronunciation, emphasis and listening context. Do not claim prompt text controls settings that live in the UI.");
 
-    private static String presentation(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt عرض تقديمي متخصصاً لـ ":"Create a presentation-native prompt for ")+n+"."+
-                (ar?"\nالموضوع: ":"\nTopic: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد الجمهور والهدف وعدد الشرائح وتسلسل القصة ورسالة كل شريحة والعناصر البصرية.":"\nDefine audience, objective, slide count, narrative sequence, one message per slide and visual elements.");
-    }
+        if("Suno".equals(n)) return new Spec("music","Specify genre or style, mood, tempo, instrumentation, vocal character and song structure. Keep lyrics separate when supplied; avoid artist-copying requests and translate them into musical characteristics.");
+        if("Udio".equals(n)) return new Spec("music","Use a concise musical description with genre, mood, instrumentation and useful tags. Keep lyrics distinct and use supported guidance or manual-style concepts only when appropriate.");
+        if("Stable Audio".equals(n)) return new Spec("music","Describe the audio event or track with genre or mood, instrumentation, texture, structure and duration intent. Do not import Suno or Udio syntax.");
 
-    private static String design(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt تصميم متخصصاً لـ ":"Create a design-native prompt for ")+n+"."+
-                (ar?"\nالفكرة: ":"\nIdea: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد الاستخدام النهائي والمقاس والشبكة والتسلسل البصري والألوان والخطوط والمكونات والتباعد.":"\nSpecify end use, dimensions, grid, hierarchy, palette, typography, components and spacing.");
-    }
+        if("Cursor".equals(n)) return new Spec("coding","Treat this as an agentic repository task: identify context to inspect, relevant files or symbols, requested change, constraints, acceptance criteria, verification and safe stopping conditions. Use @context only when the user actually supplied or selected it.");
+        if("GitHub Copilot".equals(n)) return new Spec("coding","Ground the task in the actual repository, symbols, files, pull requests or workspace context available to Copilot. State the requested change and acceptance criteria; ask for tests where appropriate.");
+        if("Claude Code".equals(n)) return new Spec("coding","Frame this as an agentic repository change with goals, files or areas to inspect, constraints, implementation requirements, verification commands and stopping conditions.");
+        if("Windsurf".equals(n)) return new Spec("coding","Frame the task around workspace context, intended behavior, affected files, project conventions, safe execution and verification.");
+        if("Replit".equals(n)) return new Spec("coding","Use current project and runtime context, describe the desired user-visible behavior, implementation constraints and verification.");
+        if("Amazon Q Developer".equals(n)) return new Spec("coding","Include project and runtime context plus relevant AWS architecture, resources, security constraints and validation when applicable.");
+        if("Gemini Code Assist".equals(n)) return new Spec("coding","Use IDE or project context, selected code or files, desired change, compatibility constraints and tests.");
+        if("Tabnine".equals(n)) return new Spec("coding","Provide precise local code context, language or framework constraints, expected behavior and compatibility requirements without inventing hidden project details.");
 
-    private static String productivity(String x,String n,String t,boolean ar){
-        return (ar?"حوّل الفكرة إلى طلب عملي داخل ":"Turn this into an actionable request inside ")+n+
-                (ar?":\n":"\n")+x+"\nTask: "+t+
-                (ar?"\nأعطِ خطوات واضحة، قرارات قابلة للتنفيذ، ومخرجات منظمة.":"\nReturn clear steps, actionable decisions and structured outputs.");
-    }
+        if("Jasper".equals(n)) return new Spec("marketing","Define audience, brand voice, campaign objective, offer, channel, funnel stage, format, key message and CTA. Preserve brand constraints.");
+        if("Copy.ai".equals(n)) return new Spec("marketing","Frame the request as a structured marketing workflow with audience, offer, funnel stage, channel, copy type, constraints and useful variants.");
+        if("Writesonic".equals(n)) return new Spec("marketing","Specify SEO or content objective, target query or audience, content structure, evidence needs, tone and conversion goal.");
 
-    private static String threeD(String x,String n,String t,boolean ar){
-        return (ar?"أنشئ Prompt 3D مخصصاً لـ ":"Create a 3D-generation prompt optimized for ")+n+"."+
-                (ar?"\nالفكرة: ":"\nIdea: ")+x+"\nTask: "+t+
-                (ar?"\nحدّد الهندسة والنسب والخامة وتفاصيل السطح والإضاءة والكاميرا والخلفية وزاوية العرض.":"\nSpecify geometry, proportions, materials, surface detail, lighting, camera, background and view angle.");
+        if("Grammarly".equals(n)) return new Spec("writing","Specify the source text, editing goal, audience, desired tone and degree of change. Preserve meaning and any text that must remain unchanged.");
+        if("Writer".equals(n)) return new Spec("writing","Specify brand voice, audience, terminology constraints, content objective, structure and quality criteria.");
+
+        if("Notion AI".equals(n)) return new Spec("productivity","Frame this as a workspace task with page or database context, desired transformation, properties or fields when relevant, output structure and final action.");
+        if("Gamma".equals(n)) return new Spec("presentation","Define audience, objective, narrative, slide or section count, content density, visual direction and key takeaway.");
+        if("Beautiful.ai".equals(n)) return new Spec("presentation","Define presentation goal, audience, slide hierarchy, concise copy, visual consistency and layout intent.");
+        if("Tome".equals(n)) return new Spec("presentation","Frame the request as a narrative presentation with audience, story arc, slide intent, visual direction and concise copy.");
+        if("Napkin AI".equals(n)) return new Spec("presentation","Define the idea, entities or relationships to visualize, audience and the most useful diagram or visual explanation.");
+
+        if("Framer AI".equals(n)) return new Spec("design","Specify website or page goal, target audience, sections, hierarchy, responsive behavior, copy requirements and visual style.");
+        if("Canva Magic Studio".equals(n)) return new Spec("design","Specify the desired creative output, dimensions or format, audience, copy, hierarchy, visual style and editable layout.");
+
+        if("Elicit".equals(n)) return new Spec("research","Define the research question, inclusion or exclusion criteria, evidence fields to extract and synthesis method. Distinguish evidence from interpretation.");
+        if("Consensus".equals(n)) return new Spec("research","Ask a precise scientific question and request study-level evidence, direction or strength of findings and limitations. Avoid treating a single paper as universal proof.");
+        if("SciSpace".equals(n)) return new Spec("research","Anchor the task to the supplied paper or academic document, specify the section or question, and require evidence extraction with citation-aware explanation.");
+        if("You.com".equals(n)) return new Spec("research","Frame as web-assisted research with a clear objective, freshness expectations, source support, uncertainty handling and concise synthesis.");
+
+        if("Meshy".equals(n)) return new Spec("3d","Specify the 3D asset, geometry, proportions, materials, surface detail, topology or use constraints and view requirements.");
+        if("Tripo AI".equals(n)) return new Spec("3d","Describe the target 3D object with geometry, proportions, materials, topology or detail level and intended use.");
+
+        if("Hugging Face".equals(n)) return new Spec("general","Specify the task, model or pipeline context if known, input schema, desired output and evaluation target. Never assume every model uses the same prompt format.");
+        if("Replicate".equals(n)) return new Spec("general","Specify the task, target model when known, input fields, expected output and constraints. Keep model-specific parameters explicit rather than inventing them.");
+        if("OpenRouter".equals(n)) return new Spec("chat","Keep the prompt portable across the selected model. State objective, context, constraints and output format, and only use model-specific behavior when the model is known.");
+        if("Together AI".equals(n)) return new Spec("general","Specify model or task context, input requirements, desired output and evaluation criteria. Avoid pretending the provider has one universal prompt syntax.");
+        if("Fireworks AI".equals(n)) return new Spec("general","Specify model or task context, structured input and output expectations, constraints and validation requirements without unsupported provider syntax.");
+        if("Fal.ai".equals(n)) return new Spec("general","Specify the generation task, model or workflow context, inputs, output requirements and relevant controls without inventing API parameters.");
+
+        if("Photoroom".equals(n)) return new Spec("design","Specify the product or subject, background, composition, lighting, cleanup or replacement goal and commercial asset use while preserving product identity.");
+        if("Looka".equals(n)) return new Spec("design","Specify brand name, industry, audience, personality, logo concept, symbol geometry, typography and real-world brand applications.");
+        if("Descript".equals(n)) return new Spec("video","Treat the request as an audio/video editing or production task when applicable: transcript or source context, edits, speakers, timing, visual structure and final deliverable.");
+        if("OpusClip".equals(n)) return new Spec("video","Treat the request as long-form-to-short-form editing: source context, audience, clip goal, hook, pacing, captions, reframing and platform format.");
+        if("Otter.ai".equals(n)) return new Spec("productivity","Frame around meeting or transcript context, speakers, requested extraction, decisions, action items, owners, deadlines and desired output.");
+        if("Fireflies.ai".equals(n)) return new Spec("productivity","Frame around meeting intelligence: transcript context, decisions, action items, owners, deadlines, risks and the intended summary format.");
+        if("Mem".equals(n)) return new Spec("productivity","Frame as knowledge retrieval or organization: relevant context, desired connection or memory, summary, decision or action and output format.");
+        return new Spec(fallback==null||fallback.isEmpty()?"general":fallback,"Understand the user's intent, preserve it, add only material constraints and define a useful output format. Do not invent platform-specific syntax.");
     }
 
     public static String improve(String s,boolean ar){
         String x=s==null?"":s.trim();
         if(x.isEmpty()) x=ar?"اكتب برومبتاً احترافياً لمهمتي.":"Write a professional prompt for my task.";
         return ar
-                ?"أعد هندسة البرومبت التالي ليصبح أدق وأكثر قابلية للتنفيذ. استخرج الهدف والسياق والقيود ومعايير الجودة وشكل المخرجات، واحذف التكرار والغموض. حافظ على نية الكاتب ولا تضف متطلبات غير مذكورة.\n\n"+x+"\n\nأخرج النسخة النهائية فقط."
-                :"Re-engineer the following prompt for precision and reliable execution. Extract objective, context, constraints, quality criteria and output format; remove ambiguity and repetition. Preserve the author's intent and do not invent requirements.\n\n"+x+"\n\nReturn only the final prompt.";
+                ? x+"\n\nأعد هندسة هذا البرومبت ليصبح أوضح وأكثر دقة وقابلية للتنفيذ. احذف الغموض والتكرار، استخرج القيود ومعايير الجودة وشكل المخرجات عند الحاجة، وحافظ على نية الكاتب. لا تضف حقائق أو متطلبات غير موجودة. أخرج البرومبت النهائي فقط من دون شرح لعملية التحسين."
+                : x+"\n\nRe-engineer this prompt for clarity, precision and reliable execution. Remove ambiguity and repetition, add material constraints, quality criteria and an output contract when needed, preserve the author's intent, and do not invent facts or requirements. Return only the final prompt, without explaining the rewrite process.";
     }
 }
