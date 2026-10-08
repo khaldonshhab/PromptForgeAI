@@ -4,17 +4,40 @@ import java.io.*; import java.net.*; import java.nio.charset.StandardCharsets; i
 public final class RemotePromptClient{
  public interface CB{void done(boolean ok,String value);}
  private void request(String method,String url,String token,String body,CB cb){
-  new Thread(()->{try{
-   HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();
-   c.setRequestMethod(method); c.setConnectTimeout(10000); c.setReadTimeout(30000);
-   c.setRequestProperty("Content-Type","application/json");
-   if(token!=null&&!token.isEmpty()) c.setRequestProperty("Authorization","Bearer "+token);
-   if(body!=null){c.setDoOutput(true);c.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));}
-   int code=c.getResponseCode(); InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
-   BufferedReader br=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8)); StringBuilder sb=new StringBuilder(); String line;
-   while((line=br.readLine())!=null)sb.append(line).append("\n");
-   cb.done(code>=200&&code<300,sb.toString());
-  }catch(Exception e){cb.done(false,e.getMessage()==null?"network error":e.getMessage());}}).start();
+  new Thread(()->{
+   HttpURLConnection c=null;
+   try{
+    c=(HttpURLConnection)new URL(url).openConnection();
+    c.setRequestMethod(method);
+    c.setConnectTimeout(10000);
+    c.setReadTimeout(30000);
+    c.setUseCaches(false);
+    c.setDoInput(true);
+    c.setRequestProperty("Accept","application/json");
+    c.setRequestProperty("Content-Type","application/json; charset=UTF-8");
+    if(token!=null&&!token.isEmpty()) c.setRequestProperty("Authorization","Bearer "+token);
+    if(body!=null){
+     byte[] bytes=body.getBytes(StandardCharsets.UTF_8);
+     c.setDoOutput(true);
+     c.setFixedLengthStreamingMode(bytes.length);
+     try(OutputStream out=c.getOutputStream()){out.write(bytes);}
+    }
+    int code=c.getResponseCode();
+    InputStream raw=code>=200&&code<300?c.getInputStream():c.getErrorStream();
+    StringBuilder sb=new StringBuilder();
+    if(raw!=null){
+     try(BufferedReader br=new BufferedReader(new InputStreamReader(raw,StandardCharsets.UTF_8))){
+      String line;
+      while((line=br.readLine())!=null)sb.append(line).append('\n');
+     }
+    }
+    cb.done(code>=200&&code<300,sb.toString().trim());
+   }catch(Exception e){
+    cb.done(false,e.getMessage()==null?"network error":e.getMessage());
+   }finally{
+    if(c!=null)c.disconnect();
+   }
+  }).start();
  }
  private void post(String url,String body,CB cb){request("POST",url,null,body,cb);}
  public void updatePassword(String base,String token,String password,CB cb){try{JSONObject j=new JSONObject();j.put("password",password);request("PATCH",base.replaceAll("/$","")+"/v1/auth/account",token,j.toString(),cb);}catch(Exception e){cb.done(false,e.getMessage());}}
