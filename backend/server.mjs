@@ -155,7 +155,19 @@ async function generate(x){
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
  if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
- if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/auth/login")try{
+   const x=await body(req);
+   const u=String(x.username||"").trim();
+   const pass=String(x.password||"");
+   if(u===ADMIN_USER&&ADMIN_PASSWORD_HASH&&verifyPassword(pass,ADMIN_PASSWORD_HASH)){
+    if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});
+    return send(res,200,{token:adminToken(),premium:false,username:ADMIN_USER,admin:true});
+   }
+   const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));
+   if(!found)return send(res,401,{error:"invalid_credentials"});
+   if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});
+   return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username,admin:false});
+  }catch(e){return send(res,400,{error:e.message||"login_failed"});}
  if(req.method==="PATCH"&&req.url==="/v1/auth/account")try{const p=auth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p||!p.u)return send(res,401,{error:"unauthorized"});const x=await body(req),found=USERS.find(v=>String(v.username||"")===p.u);if(!found||found.enabled===false)return send(res,401,{error:"account_disabled"});if(typeof x.password!=="string"||x.password.length<8)return send(res,400,{error:"password_too_short"});found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true,token:signToken(found),username:found.username});}catch(e){return send(res,400,{error:e.message||"account_update_failed"});}
  if(req.method==="POST"&&req.url==="/admin/login")try{const x=await body(req);if(String(x.username||"")!==ADMIN_USER||!ADMIN_PASSWORD_HASH||!verifyPassword(String(x.password||""),ADMIN_PASSWORD_HASH))return send(res,401,{error:"invalid_admin_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:adminToken(),username:ADMIN_USER});}catch(e){return send(res,400,{error:e.message||"admin_login_failed"});}
  if(req.method==="GET"&&req.url==="/admin/users") {const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});return send(res,200,{users:USERS.map(u=>({username:u.username,enabled:u.enabled!==false,createdAt:u.createdAt||null}))});}
