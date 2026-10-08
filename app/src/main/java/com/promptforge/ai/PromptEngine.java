@@ -15,7 +15,7 @@ public final class PromptEngine {
         String k=platform==null?"general":platform.style;
         String t=(task==null||task.trim().isEmpty())?"General":task;
         Spec spec=specFor(n,k);
-        return render(x,n,t,ar,spec);
+        return render(x,n,t,false,spec);
     }
 
     private static String render(String x,String n,String t,boolean ar,Spec s){
@@ -254,9 +254,7 @@ public final class PromptEngine {
 
     public static String improve(String s,boolean ar){
         String x=s==null?"":s.trim();
-        if(x.isEmpty()) x=ar?"اكتب برومبتاً احترافياً لمهمتي.":"Write a professional prompt for my task.";
-        return ar
-                ? x+"\n\nأعد هندسة هذا البرومبت ليصبح أوضح وأكثر دقة وقابلية للتنفيذ. احذف الغموض والتكرار، استخرج القيود ومعايير الجودة وشكل المخرجات عند الحاجة، وحافظ على نية الكاتب. لا تضف حقائق أو متطلبات غير موجودة. أخرج البرومبت النهائي فقط من دون شرح لعملية التحسين."
-                : x+"\n\nRe-engineer this prompt for clarity, precision and reliable execution. Remove ambiguity and repetition, add material constraints, quality criteria and an output contract when needed, preserve the author's intent, and do not invent facts or requirements. Return only the final prompt, without explaining the rewrite process.";
-    }
+        if(x.isEmpty()) x="Write a professional prompt for my task.";
+        return x+"\n\nRe-engineer this prompt for clarity, precision and reliable execution. Remove ambiguity and repetition, add material constraints, quality criteria and an output contract when needed, preserve the author's intent, and do not invent facts or requirements. Return only the final prompt, without explaining the rewrite process.";
+
 }
