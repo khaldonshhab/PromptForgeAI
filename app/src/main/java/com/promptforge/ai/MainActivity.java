@@ -546,6 +546,10 @@ public class MainActivity extends Activity {
         quickRow.addView(improve,new LinearLayout.LayoutParams(0,dp(96),1));
         r.addView(quickRow,new LinearLayout.LayoutParams(-1,dp(96)));
 
+        addGap(r,18);
+        View random=wideAction(tr("برومبت عشوائي","Random Prompt"),tr("صورة، قصيدة، نكتة أو أغنية — مع اسمك أو اسم أي شخص","Image, poem, joke or song — with your name or anyone's"),"spark",v->randomPrompt());
+        r.addView(random,new LinearLayout.LayoutParams(-1,dp(72)));
+
         addGap(r,20);
         TextView ph=text(tr("اختر الأداة التي تريد استخدامها","Choose the tool you want to use"),19,WHITE,true);
         r.addView(ph,new LinearLayout.LayoutParams(-1,dp(32)));
@@ -869,6 +873,7 @@ public class MainActivity extends Activity {
 
         addMenuRow(box,tr("إنشاء برومبت","Create Prompt"),"spark",v->{d.dismiss();create();});
         addMenuRow(box,tr("تحسين برومبت","Improve Prompt"),"edit",v->{d.dismiss();improve();});
+        addMenuRow(box,tr("برومبت عشوائي","Random Prompt"),"spark",v->{d.dismiss();randomPrompt();});
         addMenuRow(box,tr("كل المنصات والأدوات","All AI Platforms"),"grid",v->{d.dismiss();platforms();});
         addMenuRow(box,tr("المحادثات المحفوظة","Saved & History"),"chat",v->{d.dismiss();listScreen("history");});
         addMenuRow(box,tr("حسابي","My Account"),"user",v->{d.dismiss();account();});
@@ -914,6 +919,149 @@ public class MainActivity extends Activity {
         e.setMinLines(minLines);
         e.setBackground(rounded(PANEL2,BORDER2,22));
         return e;
+    }
+
+    private void randomPrompt(){
+        setScreen("random");
+        LinearLayout r=column();
+        titleBar(r,"برومبت عشوائي","Random Prompt");
+        addGap(r,8);
+
+        TextView intro=text(tr("اختر نوع البرومبت، ويمكنك إضافة اسمك أو اسم أي شخص ليصبح البرومبت مخصصاً.","Choose a type and optionally add your name or anyone's name to personalize the prompt."),12,MUTED,false);
+        intro.setGravity(Gravity.CENTER);
+        r.addView(intro,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        addGap(r,6);
+        EditText name=editor("اسمك أو اسم شخص آخر (اختياري)","Your name or someone else's (optional)",1);
+        name.setSingleLine(true);
+        r.addView(name,new LinearLayout.LayoutParams(-1,dp(56)));
+
+        addGap(r,12);
+        TextView typeLabel=text(tr("نوع البرومبت","Prompt type"),16,WHITE,true);
+        r.addView(typeLabel,new LinearLayout.LayoutParams(-1,dp(28)));
+        addGap(r,7);
+
+        LinearLayout grid=new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        final String[] selectedType={ar()?"صور":"Image"};
+        randomPromptCards(grid,selectedType);
+        r.addView(grid,new LinearLayout.LayoutParams(-1,dp(144)));
+
+        addGap(r,12);
+        TextView generate=button(tr("✦  ولّد برومبت عشوائي","✦  Generate Random Prompt"),true);
+        r.addView(generate,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,10);
+
+        FrameLayout result=panel(22);
+        TextView resultTitle=text(tr("النتيجة","Result"),16,WHITE,true);
+        resultTitle.setGravity(Gravity.CENTER);
+        result.addView(resultTitle,new FrameLayout.LayoutParams(-1,dp(34),Gravity.TOP|Gravity.CENTER_HORIZONTAL));
+
+        EditText output=editor("اضغط توليد لإظهار البرومبت...","Press generate to create a prompt...",5);
+        output.setGravity(ar()?Gravity.TOP|Gravity.RIGHT:Gravity.TOP|Gravity.LEFT);
+        output.setTextIsSelectable(true);
+        output.setFocusable(false);
+        output.setClickable(true);
+        FrameLayout.LayoutParams op=new FrameLayout.LayoutParams(-1,dp(150));
+        op.setMargins(dp(10),dp(38),dp(10),dp(10));
+        result.addView(output,op);
+        r.addView(result,new LinearLayout.LayoutParams(-1,dp(210)));
+
+        addGap(r,10);
+        TextView copy=button(tr("نسخ البرومبت","Copy Prompt"),false);
+        copy.setEnabled(false);
+        copy.setOnClickListener(v->{
+            ClipboardManager cm=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("PromptForgeAI",output.getText().toString()));
+            toast(tr("تم نسخ البرومبت","Prompt copied"));
+        });
+        r.addView(copy,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        generate.setOnClickListener(v->{
+            String n=name.getText().toString().trim();
+            output.setText(randomPromptText(selectedType[0],n));
+            copy.setEnabled(true);
+        });
+
+        showRoot(scroll(r));
+    }
+
+    private void randomPromptCards(LinearLayout grid,String[] selectedType){
+        grid.removeAllViews();
+        String[] arTypes={"صور","قصيدة","نكتة","أغنية"};
+        String[] enTypes={"Image","Poem","Joke","Song"};
+        String[] icons={"spark","edit","chat","music"};
+        for(int row=0;row<2;row++){
+            LinearLayout rr=new LinearLayout(this);
+            rr.setOrientation(LinearLayout.HORIZONTAL);
+            rr.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+            for(int col=0;col<2;col++){
+                int idx=row*2+col;
+                String label=ar()?arTypes[idx]:enTypes[idx];
+                FrameLayout card=panel(20);
+                card.setClickable(true);
+                card.setFocusable(true);
+                final String chosen=label;
+                card.setOnClickListener(v->{
+                    selectedType[0]=chosen;
+                    randomPromptCards(grid,selectedType);
+                });
+                if(label.equals(selectedType[0]))card.setBackground(gradient(20));
+
+                PFIconView ic=new PFIconView(this,icons[idx],idx==0?CYAN:PURPLE);
+                FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(30),dp(30));
+                ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+                ip.rightMargin=ar()?dp(12):0;
+                ip.leftMargin=ar()?0:dp(12);
+                card.addView(ic,ip);
+
+                TextView tx=text(label,14,WHITE,true);
+                tx.setGravity(Gravity.CENTER);
+                FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(54));
+                if(ar())tp.rightMargin=dp(52);else tp.leftMargin=dp(52);
+                card.addView(tx,tp);
+
+                rr.addView(card,new LinearLayout.LayoutParams(0,dp(68),1));
+                if(col==0){
+                    Space g=new Space(this);
+                    rr.addView(g,new LinearLayout.LayoutParams(dp(8),1));
+                }
+            }
+            grid.addView(rr,new LinearLayout.LayoutParams(-1,dp(68)));
+            if(row==0)addGap(grid,8);
+        }
+    }
+
+    private String randomPromptText(String type,String name){
+        Random rnd=new Random();
+        String person=name==null?"":name.trim();
+        String who=person.isEmpty()?tr("شخصية خيالية","a fictional character"):person;
+
+        String[] imageAr={
+            "أنشئ صورة سينمائية عالية التفاصيل لـ "+who+" في مدينة مستقبلية مهجورة بعد منتصف الليل، إضاءة درامية، ضباب خفيف، تكوين احترافي وعمق ميدان سينمائي.",
+            "صمّم بورتريه فني لـ "+who+" وسط مسرح قديم مهجور، ضوء مسرحي واحد من الأعلى، ظلال عميقة، تفاصيل واقعية ومزاج غامض.",
+            "أنشئ مشهداً ملحمياً لـ "+who+" يقف أمام بحر هائج تحت سماء عاصفة، تكوين سينمائي، إضاءة طبيعية درامية وتفاصيل فائقة."
+        };
+        String[] poemAr={
+            "اكتب قصيدة أصلية عن "+who+"، تتناول العزلة والأمل في آن واحد، بصور شعرية واضحة وإيقاع متماسك، من دون اقتباس أو تقليد شاعر بعينه.",
+            "اكتب قصيدة قصيرة باسم "+who+" عن الوقوف في وجه الزمن، بلغة عربية فصيحة، مكثفة وعاطفية، مع خاتمة قوية.",
+            "اكتب قصيدة وجدانية عن "+who+" والمدينة التي لا تنام، بأسلوب حديث وصور غير مبتذلة، مع الحفاظ على وحدة الموضوع."
+        };
+        String[] jokeAr={
+            "اكتب نكتة أصلية خفيفة وذكية يكون بطلها "+who+"، مناسبة للمشاركة العائلية ومن دون إساءة أو تنمر.",
+            "اكتب موقفاً كوميدياً قصيراً جداً عن "+who+" يحدث بشكل غير متوقع وينتهي بقفلة مضحكة.",
+            "اكتب نكتة حوارية بين "+who+" وشخص آخر، تعتمد على سوء فهم بسيط وتنتهي بمفارقة مضحكة."
+        };
+        String[] songAr={
+            "اكتب فكرة أغنية أصلية باسم "+who+" عن بداية جديدة بعد مرحلة صعبة، مع مقطع مميز ولازمة سهلة التذكر، من دون تقليد أغنية موجودة.",
+            "اكتب كلمات أغنية أصلية يكون "+who+" محورها، بطابع سينمائي وحالم، مع مقدمة ومقطع ولازمة وخاتمة.",
+            "اكتب أغنية عربية أصلية عن "+who+" والبحث عن مكانه في العالم، بإيقاع معاصر وصور بسيطة ولازمة قوية، من دون تقليد فنان محدد."
+        };
+
+        if(type.equals(ar()?"صور":"Image"))return imageAr[rnd.nextInt(imageAr.length)];
+        if(type.equals(ar()?"قصيدة":"Poem"))return poemAr[rnd.nextInt(poemAr.length)];
+        if(type.equals(ar()?"نكتة":"Joke"))return jokeAr[rnd.nextInt(jokeAr.length)];
+        return songAr[rnd.nextInt(songAr.length)];
     }
 
     private void create(){
