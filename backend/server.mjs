@@ -157,10 +157,38 @@ function isCompilerEcho(s){
 function localPrompt(idea,platform,task){
  const s=String(idea||"").trim();
  const p=String(platform||"").trim();
+ const t=String(task||"General").trim();
  if(!s)return "";
- if(/midjourney/i.test(p))return s.replace(/[.!?]+$/,"");
- if(/stable diffusion/i.test(p))return "Positive prompt: "+s+"\nNegative prompt: avoid unintended artifacts, distortion, blur, low detail, malformed anatomy, unwanted text and watermarks.";
- return s;
+ const isImage=/midjourney|stable diffusion|ideogram|firefly|leonardo|flux|krea|freepik|magnific|photoroom|looka|recraft|canva/i.test(p);
+ const isVideo=/runway|veo|kling|pika|luma|haiper|pixverse|vidu|ltx/i.test(p);
+ const isVoice=/elevenlabs|playht|cartesia|fish audio|murf|speechify/i.test(p);
+ const isCode=/cursor|copilot|claude code|windsurf|replit|amazon q|gemini code|tabnine/i.test(p);
+ const isResearch=/perplexity|elicit|consensus|scispace|you.com|research/i.test(p);
+ const sections=[
+  "ROLE / EXPERTISE",
+  "Act as a senior specialist appropriate to the requested task and target tool.",
+  "",
+  "OBJECTIVE / TASK",
+  s,
+  "",
+  "CONTEXT",
+  "Target tool: "+p+"\nTask type: "+t,
+  "",
+  "WORKING RULES / CONSTRAINTS",
+  "Preserve the user's exact names, quoted text, numbers and required wording. Do not invent facts, capabilities, parameters, files, sources or project details. Add only details that materially improve execution. Adapt the syntax to the target tool.",
+  "",
+  "EXECUTION",
+  isImage?"Build the result around subject, environment, composition, viewpoint, lighting, materials, color, mood and only relevant tool-specific controls.":
+  isVideo?"Build the result around framing, subject action, camera movement, environment, lighting, temporal order, continuity and ending when useful.":
+  isVoice?"Define delivery, tone, pace, rhythm, emphasis, pronunciation and pauses when relevant, while keeping the spoken script distinct from performance direction.":
+  isCode?"Inspect the available project context first. Identify affected files or components, preserve existing APIs and conventions, implement the requested behavior, and verify the change with appropriate tests or checks.":
+  isResearch?"Use an evidence-first approach. Separate facts, inferences and uncertainty. Never invent citations or study findings, and identify information that requires current verification.":
+  "Interpret the user's actual goal, resolve only material ambiguity, and produce the most useful actionable result.",
+  "",
+  "OUTPUT FORMAT / ACCEPTANCE CRITERIA",
+  "Return a complete, standalone result suitable for direct use in the target tool. Keep it specific, coherent and free of irrelevant filler."
+ ];
+ return sections.join("\n");
 }
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
@@ -179,7 +207,10 @@ async function callProvider(system,user){
  return out;
 }
 async function generate(x){
- if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
+ if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
+  const inferredTask=String(x.task||"General").trim()||"General";
+  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
+ }
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
  const requestedTask=String(x.task||"General").trim();
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
