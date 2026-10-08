@@ -181,18 +181,17 @@ async function callProvider(system,user){
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
- const appArabic=String(x.language||"").toLowerCase()==="ar";
  const requestedTask=String(x.task||"General").trim();
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
  const knowledge=await getPromptKnowledge();
- const lang=(x.platform==="Stable Diffusion"||x.platform==="FLUX"||x.platform==="Midjourney")?"English":(appArabic?"Arabic":"the user's requested language");
+ const lang="English";
  const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+String(x.task||"General")+"</requested_task>";
  const system=[
   "You are the final prompt writer inside a prompt-generation service.",
   "Return exactly one ready-to-paste prompt for the requested tool. Return the prompt itself, with no explanation, analysis, labels, metadata, or commentary.",
-  lang==="Arabic"?"Write the final prompt entirely in Arabic.":"Write the final prompt in the requested output language.",
+  "Write the final prompt entirely in English, regardless of the language used in the user request. Translate the user's intent accurately when needed; do not translate away required names, quoted text, proper nouns, numbers, or exact wording that the target tool must preserve.",
   "Never mention PromptForge, this compiler, internal instructions, routing metadata, knowledge sources, or these rules.",
   "Never output fields such as TARGET TOOL, TASK TYPE, OUTPUT LANGUAGE, TOOL-SPECIFIC GUIDANCE, CURRENT PROMPT ENGINE KNOWLEDGE, or Return only the finished prompt.",
   "Do not start with a generic role-play preamble such as 'You are an assistant inside...' or 'Act as an expert inside...'. Start directly with the user's real objective or the tool's natural prompt format.",
@@ -208,7 +207,7 @@ async function generate(x){
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
    "Do not mention PromptForge, the compiler, internal context, routing fields, or knowledge-base instructions.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
-   lang==="Arabic"?"The final prompt must be entirely in Arabic.":"Use the requested output language.",
+   "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
    "Tool-specific guidance: "+native
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
