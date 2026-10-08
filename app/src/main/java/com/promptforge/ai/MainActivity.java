@@ -262,6 +262,36 @@ public class MainActivity extends Activity {
         showRoot(r);
     }
 
+    private View brandHeader(int height){
+        FrameLayout top=new FrameLayout(this);
+
+        LinearLayout brand=new LinearLayout(this);
+        brand.setOrientation(LinearLayout.HORIZONTAL);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        brand.setPadding(0,0,dp(4),0);
+
+        PromptForgeLogoView mini=new PromptForgeLogoView(this);
+        brand.addView(mini,new LinearLayout.LayoutParams(dp(38),dp(38)));
+
+        TextView name=text("PromptForge AI",19,WHITE,true);
+        name.setTextDirection(View.TEXT_DIRECTION_LTR);
+        name.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,dp(44));
+        np.leftMargin=dp(8);
+        brand.addView(name,np);
+
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,dp(height));
+        bp.gravity=Gravity.CENTER_VERTICAL|Gravity.START;
+        top.addView(brand,bp);
+
+        View lang=languageControl();
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
+        lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
+        top.addView(lang,lp);
+
+        return top;
+    }
+
     private View languageControl(){
         FrameLayout wrap=new FrameLayout(this);
         wrap.setBackground(rounded(PANEL2,BORDER,16));
@@ -579,19 +609,8 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         LinearLayout r=column();
         r.setGravity(Gravity.CENTER_HORIZONTAL);
         addGap(r,6);
-        FrameLayout top=new FrameLayout(this);
-        TextView brand=text("PromptForge AI",25,WHITE,true);
-        brand.setGravity(Gravity.CENTER);
-        brand.setTextDirection(View.TEXT_DIRECTION_LTR);
-        FrameLayout.LayoutParams br=new FrameLayout.LayoutParams(-1,dp(54));
-        br.leftMargin=dp(128); br.rightMargin=dp(128);
-        top.addView(brand,br);
-        View langBtn=languageControl();
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(118),dp(44));
-        lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
-        top.addView(langBtn,lp);
-        r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,14);
+        r.addView(brandHeader(54),new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,8);
         PromptForgeLogoView loginLogo=new PromptForgeLogoView(this);
         LinearLayout logoHolder=new LinearLayout(this);
         logoHolder.setGravity(Gravity.CENTER);
@@ -605,10 +624,22 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         sub.setGravity(Gravity.CENTER);
         r.addView(sub,new LinearLayout.LayoutParams(-1,dp(40)));
         addGap(r,18);
-        EditText user=editor("اسم المستخدم","Username",1); user.setSingleLine(true); r.addView(user,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,10);
-        EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,16);
+        LinearLayout form=new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(18),dp(18),dp(18),dp(18));
+        form.setBackground(rounded(PANEL,BORDER,22));
+
+        EditText user=editor("اسم المستخدم","Username",1);
+        user.setSingleLine(true);
+        form.addView(user,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(form,10);
+
+        EditText pass=editor("كلمة المرور","Password",1);
+        pass.setSingleLine(true);
+        pass.setInputType(0x00000081);
+        form.addView(pass,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(form,16);
+
         TextView login=button(tr("دخول","Sign in"),true);
         login.setOnClickListener(v->{
             String base="https://promptforge-backend-2p4q.onrender.com";
@@ -635,7 +666,9 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 }catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم","Invalid server response"));}
             }));
         });
-        r.addView(login,new LinearLayout.LayoutParams(-1,dp(62)));
+        form.addView(login,new LinearLayout.LayoutParams(-1,dp(62)));
+        r.addView(form,new LinearLayout.LayoutParams(-1,-2));
+        addGap(r,10);
         showRoot(r);
     }
 
