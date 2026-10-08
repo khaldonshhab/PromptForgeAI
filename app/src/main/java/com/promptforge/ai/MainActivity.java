@@ -645,7 +645,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         LinearLayout r=column();
         r.setGravity(Gravity.CENTER_HORIZONTAL);
         addGap(r,6);
-        r.addView(brandHeader(54,false),new LinearLayout.LayoutParams(-1,dp(58)));
+        r.addView(brandHeader(54,true),new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,8);
         PromptForgeLogoView loginLogo=new PromptForgeLogoView(this);
         LinearLayout logoHolder=new LinearLayout(this);
