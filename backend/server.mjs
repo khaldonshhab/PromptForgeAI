@@ -175,6 +175,7 @@ function cleanUserIdea(value){
  for(const pattern of boilerplate)s=s.replace(pattern,"\n");
  return s.replace(/\n{3,}/g,"\n\n").trim();
 }
+function hasRepeatedWords(s){return /\b([a-z]{2,})(?:\s+\1\b)+/i.test(String(s||""));}
 function isCompilerEcho(s){
  const z=String(s||"").toLowerCase();
  return z.includes("target tool:")
@@ -288,7 +289,7 @@ async function generate(x){
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
  ].join("\n");
  let prompt=await callProvider(system,user);
- if(isCompilerEcho(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
+ if(isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
   const retrySystem=[
    "Write the final user-facing prompt now.",
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
@@ -299,7 +300,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- const leakedCompilerText=()=>isCompilerEcho(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
+ const leakedCompilerText=()=>isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
  if(leakedCompilerText()){
   console.warn("Prompt output rejected: compiler instructions leaked; using safe local fallback");
   prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
