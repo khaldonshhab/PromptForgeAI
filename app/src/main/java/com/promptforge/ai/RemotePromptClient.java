@@ -34,7 +34,7 @@ public final class RemotePromptClient{
     if(raw!=null){
      try(BufferedReader br=new BufferedReader(new InputStreamReader(raw,StandardCharsets.UTF_8))){
       String line;
-      while((line=br.readLine())!=null)sb.append(line).append('\\n');
+      while((line=br.readLine())!=null)sb.append(line).append('\n');
      }
     }
     String response=sb.toString().trim();
