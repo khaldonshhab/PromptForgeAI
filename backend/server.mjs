@@ -176,14 +176,14 @@ function cleanUserIdea(value){
  return s.replace(/\n{3,}/g,"\n\n").trim();
 }
 function hasRepeatedWords(s){return /\b([a-z]{2,})(?:\s+\1\b)+/i.test(String(s||""));}
-function hasArabicScript(s){return /[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF]/.test(String(s||""));}
+function hasArabicScript(s){for(const ch of String(s||"")){const n=ch.codePointAt(0);if((n>=0x0600&&n<=0x06FF)||(n>=0x0750&&n<=0x077F)||(n>=0x08A0&&n<=0x08FF))return true;}return false;}
 function looksLikeTranslationOnly(output, idea, profile){
  const out=String(output||"").trim();
  const words=out.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g)||[];
- const sourceWords=String(idea||"").trim().split(/\\s+/).filter(Boolean).length;
+ const sourceWords=String(idea||"").trim().split(/\s+/).filter(Boolean).length;
  if(hasArabicScript(out)||words.length<18)return true;
  if(sourceWords>=5&&words.length<Math.min(28,Math.ceil(sourceWords*1.15)))return true;
- if(["image","video","music"].includes(profile)&&words.length<28)return true;
+ if(/image|video|music/i.test(String(profile||""))&&words.length<28)return true;
  return false;
 }
 function isCompilerEcho(s){
