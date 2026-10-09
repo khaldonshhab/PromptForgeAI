@@ -1292,14 +1292,24 @@ public class MainActivity extends Activity {
                 loginScreen();
                 return;
             }
-            // Only use on-device translation as a fallback when the server is unavailable.
-            new FreeTranslator().translateArabicToEnglish(idea,(translatedOk,translated)->runOnUiThread(()->{
-                String source=translatedOk&&translated!=null&&!translated.trim().isEmpty()?translated.trim():idea;
-                last=PromptEngine.generate(source,find(sel),task,false);
-                s.add("history",last);
-                result();
-                toast(tr("تعذر الوصول للخادم؛ تم استخدام المحرك المحلي","Server unavailable; used the local engine"));
-            }));
+            // Do not turn a translation or local template into a false successful result.
+            // The server is the authoritative prompt-generation path; let the user retry.
+            String message;
+            if ("http_502".equals(val)) {
+                message=tr("تعذّر توليد برومبت صالح من الذكاء الاصطناعي. حاول مجدداً بعد قليل.",
+                           "The AI could not generate a valid prompt. Please try again shortly.");
+            } else if ("http_503".equals(val)) {
+                message=tr("خدمة توليد البرومبت غير جاهزة حالياً. حاول لاحقاً.",
+                           "Prompt generation is not configured or available right now. Please try again later.");
+            } else if (val != null && val.startsWith("http_")) {
+                message=tr("تعذّر توليد البرومبت (رمز الخطأ "+val.substring(5)+"). حاول مجدداً.",
+                           "Prompt generation failed (HTTP "+val.substring(5)+"). Please try again.");
+            } else {
+                message=tr("تعذّر الاتصال بخدمة توليد البرومبت. تحقق من اتصالك وحاول مجدداً.",
+                           "Could not reach the prompt-generation service. Check your connection and try again.");
+            }
+            toast(message);
+            return;
         }));
     }
 
