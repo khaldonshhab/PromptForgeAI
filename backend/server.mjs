@@ -141,7 +141,27 @@ function send(res,code,obj){res.writeHead(code,{"Content-Type":"application/json
 function body(req){return new Promise((resolve,reject)=>{let s="",done=false;req.on("data",c=>{if(done)return;s+=c;if(s.length>1200000){done=true;reject(new Error("body_too_large"));req.destroy();}});req.on("end",()=>{if(done)return;try{resolve(JSON.parse(s||"{}"));}catch(e){reject(new Error("invalid_json"));}});req.on("error",e=>{if(!done){done=true;reject(e);}});});}
 const PROMPT_RATE_WINDOW_MS=60000,PROMPT_RATE_MAX=20,promptRate=new Map();
 function allowPrompt(user){const now=Date.now(),key=String(user||"unknown"),old=promptRate.get(key);if(!old||now-old.reset>=PROMPT_RATE_WINDOW_MS){promptRate.set(key,{count:1,reset:now});return true;}if(old.count>=PROMPT_RATE_MAX)return false;old.count++;return true;}
-function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
+function profileFor(platform,task){
+ const t=String(task||"").trim().toLowerCase();
+ const taskProfiles=[
+  [/^(image prompt|image|visual prompt|برومبت صورة|صورة)$/,"image"],
+  [/^(video prompt|video|برومبت فيديو|فيديو)$/,"video"],
+  [/^(voice \/ tts|voice|tts|صوت)$/,"voice"],
+  [/^(coding|programming|برمجة)$/,"coding"],
+  [/^(research|بحث)$/,"research"],
+  [/^(marketing|تسويق)$/,"marketing"],
+  [/^(music|song|موسيقى|أغنية)$/,"music"]
+ ];
+ for(const [pattern,profile] of taskProfiles){if(pattern.test(t))return profile;}
+ if(PROFILES[platform])return PROFILES[platform];
+ if(t.includes("video"))return"video";
+ if(t.includes("image"))return"image";
+ if(t.includes("voice")||t.includes("tts"))return"voice";
+ if(t.includes("coding"))return"coding";
+ if(t.includes("research"))return"research";
+ if(t.includes("marketing"))return"marketing";
+ return"general";
+}
 function inferTask(idea,platform){const s=String(idea||"").toLowerCase()+" "+String(platform||"").toLowerCase();if(/image|photo|portrait|logo|poster|illustration|صورة|بورتريه|شعار|بوستر|تصميم/.test(s))return"Image";if(/video|film|shot|camera|animation|فيديو|مشهد|لقطة|كاميرا|تحريك/.test(s))return"Video";if(/voice|narration|dub|tts|voiceover|تعليق صوتي|دوبلاج|مذيع|صوت/.test(s))return"Voice";if(/music|song|lyrics|أغنية|موسيقى|لحن|كلمات/.test(s))return"Music";if(/code|coding|program|app|api|برمجة|كود|تطبيق|واجهة برمجية/.test(s))return"Coding";if(/research|study|paper|بحث|دراسة|مصادر|مراجع/.test(s))return"Research";if(/marketing|ad|campaign|seo|تسويق|إعلان|حملة|سيو/.test(s))return"Marketing";return"General";}
 function cleanUserIdea(value){
  let s=String(value||"").trim();
