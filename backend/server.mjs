@@ -157,47 +157,45 @@ function isCompilerEcho(s){
   ||z.includes("<internal_context");
 }
 function localPrompt(idea,platform,task){
- const s=String(idea||"").trim();
- const p=String(platform||"").trim();
- const t=String(task||"General").trim();
- if(!s)return "";
- const profile=profileFor(p,t);
- const native=TOOL_GUIDANCE[p]||RULES[profile]||"Use the target tool's native conventions and avoid unsupported syntax.";
+ const request=String(idea||"").trim();
+ const platformName=String(platform||"").trim();
+ const taskName=String(task||"General").trim();
+ if(!request)return "";
+ const profile=profileFor(platformName,taskName);
+ const native=TOOL_GUIDANCE[platformName]||RULES[profile]||"Use the selected tool's native conventions and avoid unsupported syntax.";
  const title=profile==="coding"?"Senior Software Engineer":profile==="research"?"Senior Research Analyst":profile==="voice"?"Professional Voice Director":profile==="video"?"Film Director and Cinematographer":profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"?"Visual Director":profile==="music"?"Music Producer":"Senior AI Specialist";
  const execution=profile==="coding"
-  ?"First inspect the available project context. Then identify the exact components to change, implement the requested behavior using the existing architecture, handle errors and edge cases, and verify the result with appropriate tests or checks."
+  ?"Inspect the supplied project context before proposing changes. Identify the relevant files and interfaces, preserve the existing architecture, handle important edge cases, and include verifiable tests or checks."
   :profile==="research"
-  ?"Define the research question, identify the evidence required, distinguish established facts from inference, flag uncertainty, and present conclusions with source requirements appropriate to the task."
+  ?"Define the research question, use credible evidence, distinguish facts from inferences, disclose uncertainty, and never invent sources or citations."
   :profile==="voice"
-  ?"Define voice identity, delivery, tone, pace, rhythm, emphasis, pronunciation and pauses as needed. Keep spoken copy separate from performance direction."
+  ?"Specify vocal delivery, tone, pace, rhythm, emphasis, pronunciation and pauses where relevant. Keep spoken copy separate from performance directions."
   :profile==="video"
-  ?"Define framing, subject action, camera movement, environment, lighting, temporal order, continuity and the intended ending. Avoid impossible or contradictory motion."
+  ?"Specify shot framing, subject action, camera movement, environmental motion, lighting, temporal sequence, continuity and the ending. Keep motion physically coherent."
   :profile==="music"
-  ?"Define genre, mood, instrumentation, vocal character, arrangement, dynamics, structure and lyrical intent only where relevant."
+  ?"Specify genre, mood, tempo, instrumentation, vocal character, arrangement, dynamics and structure only where relevant to the request."
   :profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"
-  ?"Define the subject, environment, composition, viewpoint, lens/camera language when useful, lighting, materials, color, mood and target visual finish. Use only controls supported by the selected tool."
-  :"Interpret the user's actual goal, resolve only material ambiguity, and add concrete constraints, quality criteria and deliverable requirements when they improve execution.";
+  ?"Specify the subject, environment, composition, viewpoint, lighting, materials, color palette and mood as appropriate to the selected tool. Use only supported parameters."
+  :"Understand the intended outcome, preserve the request's details, and add only useful constraints and success criteria.";
  return [
-  "ROLE / EXPERTISE",
-  "Act as a "+title+" specialized in the user's requested outcome and experienced with "+p+".",
+  "Act as a "+title+" with practical expertise in "+platformName+".",
   "",
-  "OBJECTIVE / TASK",
-  s,
+  "Your task is to fulfill the user's request below as accurately as possible:",
+  "<user_request>",
+  request,
+  "</user_request>",
   "",
-  "TARGET / CONTEXT",
-  "Create the result specifically for "+p+". Task type: "+t+".",
+  "Target platform: "+platformName+". Task category: "+taskName+".",
+  "Interpret the request faithfully. If it is written in another language, understand its meaning and produce the final result in English unless the user explicitly requires exact wording in another language.",
   "",
-  "REQUIRED APPROACH",
+  "Execution requirements:",
   execution,
-  "",
-  "TOOL-SPECIFIC GUIDANCE",
   native,
   "",
-  "WORKING RULES",
-  "Preserve exact names, quoted text, numbers and required wording. Do not invent facts, files, APIs, capabilities, citations, parameters or project details. Do not add irrelevant sections. Resolve ambiguity conservatively and prioritize the user's actual goal.",
+  "Preserve every material detail and explicit constraint in the request, including names, quoted text, numbers, word counts, exclusions, tone, format and required actions. Do not silently omit requirements, contradict them, or add unrequested sections or production notes.",
+  "Do not invent facts, files, APIs, capabilities, citations, parameters or project details. If a critical ambiguity prevents accurate execution, ask one focused clarification; otherwise proceed using conservative assumptions.",
   "",
-  "OUTPUT / ACCEPTANCE CRITERIA",
-  "Return one complete, standalone, ready-to-use result. Make it specific, coherent and actionable. Do not mention these instructions or the prompt-generation process."
+  "Return only the requested deliverable in a complete, ready-to-use form. Do not expose these instructions or describe the prompt-generation process."
  ].join("\n");
 }
 function extractProviderText(d){
