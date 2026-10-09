@@ -1,569 +1,1921 @@
 package com.promptforge.ai;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-import org.json.JSONObject;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import android.app.*;
+import android.content.*;
+import android.graphics.*;
+import android.graphics.drawable.*;
+import android.net.Uri;
+import android.os.*;
+import android.text.*;
+import android.text.style.ForegroundColorSpan;
+import android.view.*;
+import android.widget.*;
+import java.util.*;
 
-/**
- * PromptForge V2 clean UI.
- * All AI generation is remote; this screen deliberately has no translation/local-template fallback.
- */
-public final class MainActivity extends Activity {
-    private static final String BASE_URL = "https://promptforge-backend-2p4q.onrender.com";
-    private static final int BG = Color.rgb(10, 12, 18);
-    private static final int PANEL = Color.rgb(22, 26, 35);
-    private static final int BORDER = Color.rgb(47, 55, 70);
-    private static final int WHITE = Color.rgb(245, 247, 252);
-    private static final int MUTED = Color.rgb(164, 174, 192);
-    private static final int ACCENT = Color.rgb(93, 148, 255);
-    private static final int GREEN = Color.rgb(86, 205, 157);
+public class MainActivity extends Activity {
+    private static final String BASE_URL="https://promptforge-backend-2p4q.onrender.com";
+    private Storage s;
+    private List<Platform> ps;
+    private String lang="", sel="ChatGPT", task="General", last="";
+    private String currentScreen="login";
 
-    private Storage storage;
-    private RemotePromptClient remote;
-    private LinearLayout root;
-    private String token = "";
-    private String screen = "login";
-    private String language = "English";
-    private final List<String> backStack = new ArrayList<>();
-    private List<Platform> platforms = new ArrayList<>();
-    private Spinner platformSpinner;
-    private Spinner taskSpinner;
-    private EditText ideaInput;
-    private TextView generatedOutput;
-    private EditText randomName;
-    private Spinner randomType;
-    private TextView randomOutput;
-    private boolean busy = false;
+    private final int BG=Color.rgb(3,7,19);
+    private final int PANEL=Color.rgb(9,17,37);
+    private final int PANEL2=Color.rgb(11,22,45);
+    private final int PANEL3=Color.rgb(15,28,57);
+    private final int BORDER=Color.rgb(34,52,88);
+    private final int BORDER2=Color.rgb(48,69,112);
+    private final int BLUE=Color.rgb(22,190,255);
+    private final int CYAN=Color.rgb(52,215,255);
+    private final int PURPLE=Color.rgb(139,76,255);
+    private final int VIOLET=Color.rgb(112,76,255);
+    private final int WHITE=Color.rgb(246,248,255);
+    private final int MUTED=Color.rgb(164,179,211);
+    private final int MUTED2=Color.rgb(119,139,177);
+    private final int SUCCESS=Color.rgb(88,226,166);
 
-    @Override public void onCreate(Bundle state) {
+    @Override public void onCreate(Bundle state){
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        storage = new Storage(this);
-        remote = new RemotePromptClient();
-        language = "Arabic".equals(storage.lang()) ? "Arabic" : "English";
-        token = storage.accountToken();
-        platforms = PlatformRepository.all();
-        // The login screen is always the first screen on launch, as requested.
-        showLogin();
-        remote.health(BASE_URL, (ok, value) -> { });
+        if(Build.VERSION.SDK_INT>=30) getWindow().setDecorFitsSystemWindows(true);
+        s=new Storage(this);
+        ps=PlatformRepository.all();
+        lang=s.lang();
+        if(lang.isEmpty()){lang="ar";s.lang(lang);}
+        showSplash();
     }
 
-    private boolean ar() { return "Arabic".equals(language); }
-    private String tr(String arabic, String english) { return ar() ? arabic : english; }
+    @Override public void onBackPressed(){
+        if("home".equals(currentScreen)||"login".equals(currentScreen)||"splash".equals(currentScreen)){
+            confirmExit();
+        }else{
+            home();
+        }
+    }
 
-    private void showLogin() {
-        screen = "login";
-        backStack.clear();
-        root = newRoot();
-        LinearLayout page = column(22);
-        root.addView(page, matchWrap());
-        LinearLayout top = row();
-        TextView brand = text("PromptForge AI", 24, WHITE, true);
-        top.addView(brand, new LinearLayout.LayoutParams(0, dp(48), 1));
-        Spinner languageSpinner = new Spinner(this);
-        ArrayAdapter<String> langs = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                new String[]{"English", "Arabic"});
-        langs.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        languageSpinner.setAdapter(langs);
-        languageSpinner.setSelection(ar() ? 1 : 0);
-        top.addView(languageSpinner, new LinearLayout.LayoutParams(dp(112), dp(48)));
-        languageSpinner.setOnItemSelectedListener(new SimpleSelection(position -> {
-            String next = position == 1 ? "Arabic" : "English";
-            if (!next.equals(language)) {
-                language = next;
-                storage.lang(language);
-                showLogin();
+    private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private boolean ar(){return "ar".equals(lang);}
+    private String tr(String a,String e){return ar()?a:e;}
+
+    private String bidi(String x){
+        if(x==null||!ar())return x;
+        StringBuilder out=new StringBuilder();
+        boolean latin=false;
+        for(int i=0;i<x.length();i++){
+            char ch=x.charAt(i);
+            boolean now=(ch<128&&(Character.isLetterOrDigit(ch)||".:/_-@+#%()".indexOf(ch)>=0));
+            if(now&&!latin)out.append('\u2066');
+            if(!now&&latin)out.append('\u2069');
+            out.append(ch);
+            latin=now;
+        }
+        if(latin)out.append('\u2069');
+        return out.toString();
+    }
+
+    private GradientDrawable rounded(int fill,int stroke,int radius){
+        GradientDrawable d=new GradientDrawable();
+        d.setColor(fill);
+        d.setCornerRadius(dp(radius));
+        if(stroke!=0)d.setStroke(dp(1),stroke);
+        return d;
+    }
+
+    private GradientDrawable gradient(int radius){
+        GradientDrawable d=new GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            new int[]{BLUE,VIOLET,PURPLE});
+        d.setCornerRadius(dp(radius));
+        return d;
+    }
+
+    private LinearLayout column(){
+        LinearLayout r=new LinearLayout(this);
+        r.setOrientation(LinearLayout.VERTICAL);
+        r.setBackgroundColor(Color.TRANSPARENT);
+        r.setPadding(dp(18),dp(10),dp(18),dp(24));
+        r.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        return r;
+    }
+
+    private ScrollView scroll(View child){
+        ScrollView sc=new ScrollView(this);
+        sc.setFillViewport(true);
+        sc.setClipToPadding(false);
+        sc.setVerticalScrollBarEnabled(false);
+        sc.addView(child);
+        return sc;
+    }
+
+    private FrameLayout screenFrame(){
+        FrameLayout f=new FrameLayout(this);
+        f.setBackgroundColor(Color.TRANSPARENT);
+        return f;
+    }
+
+    private void showRoot(View v){
+        FrameLayout host=new FrameLayout(this);
+        host.setBackgroundColor(BG);
+        host.addView(new AmbientBackgroundView(this),new FrameLayout.LayoutParams(-1,-1));
+        host.addView(v,new FrameLayout.LayoutParams(-1,-1));
+        setContentView(host);
+
+        host.setOnApplyWindowInsetsListener((view,insets)->{
+            int top,bottom;
+            if(Build.VERSION.SDK_INT>=30){
+                android.graphics.Insets z=insets.getInsets(WindowInsets.Type.systemBars());
+                top=z.top;bottom=z.bottom;
+            }else{
+                top=insets.getSystemWindowInsetTop();bottom=insets.getSystemWindowInsetBottom();
             }
-        }));
-        page.addView(top);
-        addSpace(page, 56);
-        TextView mark = text("✦", 46, ACCENT, true);
-        mark.setGravity(Gravity.CENTER);
-        page.addView(mark, matchHeight(62));
-        TextView title = text(tr("أنشئ برومبتات احترافية","Create professional prompts"), 26, WHITE, true);
+            v.setPadding(v.getPaddingLeft(),v.getPaddingTop()+top,v.getPaddingRight(),v.getPaddingBottom()+bottom);
+            return insets;
+        });
+        host.requestApplyInsets();
+    }
+
+    private TextView text(String value,float size,int color,boolean bold){
+        TextView t=new TextView(this);
+        t.setText(bidi(value));
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));
+        t.setIncludeFontPadding(true);
+        t.setTextDirection(ar()?View.TEXT_DIRECTION_FIRST_STRONG:View.TEXT_DIRECTION_LTR);
+        t.setGravity(ar()?Gravity.RIGHT:Gravity.LEFT);
+        t.setMaxLines(40);
+        return t;
+    }
+
+    private TextView brandText(float size){
+        TextView t=new TextView(this);
+        SpannableString ss=new SpannableString("PromptForgeAI");
+        ss.setSpan(new ForegroundColorSpan(WHITE),0,11,Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ForegroundColorSpan(PURPLE),11,13,Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        t.setText(ss);
+        t.setTextSize(size);
+        t.setTypeface(Typeface.create("sans",Typeface.BOLD));
+        t.setGravity(Gravity.CENTER);
+        t.setTextDirection(View.TEXT_DIRECTION_LTR);
+        return t;
+    }
+
+    private TextView pill(String value){
+        TextView t=text(value,12,MUTED,false);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(12),0,dp(12),0);
+        t.setBackground(rounded(PANEL2,BORDER,18));
+        return t;
+    }
+
+    private TextView button(String value,boolean primary){
+        TextView b=text(value,15,WHITE,true);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(12),0,dp(12),0);
+        b.setClickable(true);
+        b.setFocusable(true);
+        b.setBackground(primary?gradient(21):rounded(PANEL2,BORDER2,21));
+        return b;
+    }
+
+    private TextView iconButton(String kind,String label,boolean primary,View.OnClickListener click){
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        row.setPadding(dp(10),0,dp(10),0);
+        row.setBackground(primary?gradient(22):rounded(PANEL2,BORDER2,22));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(click);
+
+        PFIconView ic=new PFIconView(this,kind,WHITE);
+        row.addView(ic,new LinearLayout.LayoutParams(dp(28),dp(28)));
+        TextView t=text(label,14,WHITE,true);
+        t.setGravity(Gravity.CENTER);
+        row.addView(t,new LinearLayout.LayoutParams(0,dp(52),1));
+        return makeButtonContainer(row);
+    }
+
+    private TextView makeButtonContainer(LinearLayout row){
+        TextView dummy=new TextView(this);
+        dummy.setVisibility(View.GONE);
+        return dummy;
+    }
+
+    private FrameLayout panel(){
+        FrameLayout f=new FrameLayout(this);
+        f.setBackground(rounded(PANEL,BORDER,26));
+        return f;
+    }
+
+    private FrameLayout panel(int radius){
+        FrameLayout f=new FrameLayout(this);
+        f.setBackground(rounded(PANEL,BORDER,radius));
+        return f;
+    }
+
+    private void addGap(ViewGroup r,int h){
+        Space sp=new Space(this);
+        r.addView(sp,new LinearLayout.LayoutParams(1,dp(h)));
+    }
+
+    private void titleBar(LinearLayout root,String arTitle,String enTitle){
+        FrameLayout bar=new FrameLayout(this);
+        TextView t=text(tr(arTitle,enTitle),24,WHITE,true);
+        t.setGravity(Gravity.CENTER);
+        bar.addView(t,new FrameLayout.LayoutParams(-1,dp(54)));
+
+        TextView mini=text("PROMPTFORGE",10,MUTED2,true);
+        mini.setTextDirection(View.TEXT_DIRECTION_LTR);
+        mini.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams mp=new FrameLayout.LayoutParams(dp(86),dp(24));
+        mp.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        bar.addView(mini,mp);
+
+        View line=new View(this);
+        line.setBackgroundColor(Color.rgb(24,38,68));
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,dp(1));
+        lp.gravity=Gravity.BOTTOM;
+        bar.addView(line,lp);
+        root.addView(bar,new LinearLayout.LayoutParams(-1,dp(56)));
+    }
+
+    private View loginHeader(){
+        FrameLayout top=new FrameLayout(this);
+        top.setPadding(0,0,0,dp(3));
+
+        TextView brand=brandText(19);
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,dp(40));
+        bp.gravity=Gravity.LEFT|Gravity.CENTER_VERTICAL;
+        top.addView(brand,bp);
+
+        View langBtn=languageControl();
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(40),dp(40));
+        lp.gravity=Gravity.RIGHT|Gravity.CENTER_VERTICAL;
+        top.addView(langBtn,lp);
+
+        View line=new View(this);
+        line.setBackgroundColor(Color.rgb(23,37,66));
+        FrameLayout.LayoutParams dl=new FrameLayout.LayoutParams(-1,dp(1));
+        dl.gravity=Gravity.BOTTOM;
+        top.addView(line,dl);
+        return top;
+    }
+
+    private View languageControl(){
+        FrameLayout wrap=new FrameLayout(this);
+        wrap.setBackground(rounded(PANEL2,BORDER2,13));
+        wrap.setClickable(true);
+        wrap.setFocusable(true);
+
+        View flag=ar()?new SyrianFlagView(this):new UKFlagView(this);
+        wrap.addView(flag,new FrameLayout.LayoutParams(dp(28),dp(18),Gravity.CENTER));
+        wrap.setContentDescription(ar()?"تغيير لغة التطبيق":"Change app language");
+        wrap.setOnClickListener(v->languageDialog());
+        return wrap;
+    }
+
+    private void languageDialog(){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+        TextView title=text(tr("لغة التطبيق","App language"),20,WHITE,true);
         title.setGravity(Gravity.CENTER);
-        page.addView(title, matchHeight(58));
-        TextView sub = text(tr("سجّل الدخول للمتابعة","Sign in to continue"), 15, MUTED, false);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(42)));
+        addGap(box,10);
+
+        LinearLayout arRow=languageRow(new SyrianFlagView(this),"العربية");
+        arRow.setOnClickListener(v->{lang="ar";s.lang(lang);d.dismiss();refreshScreen();});
+        box.addView(arRow,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(box,8);
+
+        LinearLayout enRow=languageRow(new UKFlagView(this),"English");
+        enRow.setOnClickListener(v->{lang="en";s.lang(lang);d.dismiss();refreshScreen();});
+        box.addView(enRow,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(box,12);
+
+        TextView cancel=button(tr("إلغاء","Cancel"),false);
+        cancel.setOnClickListener(v->d.dismiss());
+        box.addView(cancel,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        d.setContentView(box);
+        sizeDialog(d,0.88f);
+        d.show();
+        sizeDialog(d,0.88f);
+    }
+
+    private void refreshScreen(){
+        if("settings".equals(currentScreen))settings();
+        else if("account".equals(currentScreen))account();
+        else if("home".equals(currentScreen))home();
+        else loginScreen();
+    }
+
+    private LinearLayout dialogBox(){
+        LinearLayout b=new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setPadding(dp(20),dp(20),dp(20),dp(20));
+        b.setBackground(rounded(PANEL,0,28));
+        return b;
+    }
+
+    private Dialog designDialog(){
+        final Dialog d=new Dialog(this);
+        d.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        Window w=d.getWindow();
+        if(w!=null)w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        d.setCanceledOnTouchOutside(true);
+        return d;
+    }
+
+    private void sizeDialog(Dialog d,float width){
+        Window w=d.getWindow();
+        if(w!=null){
+            WindowManager.LayoutParams p=w.getAttributes();
+            p.width=(int)(getResources().getDisplayMetrics().widthPixels*width);
+            p.height=WindowManager.LayoutParams.WRAP_CONTENT;
+            p.dimAmount=0.76f;
+            w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            w.setAttributes(p);
+        }
+    }
+
+    private LinearLayout languageRow(View flag,String label){
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12),0,dp(12),0);
+        row.setBackground(rounded(PANEL2,BORDER,18));
+        row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        row.addView(flag,new LinearLayout.LayoutParams(dp(30),dp(20)));
+        TextView t=text(label,16,WHITE,true);
+        t.setGravity(Gravity.CENTER);
+        t.setTextDirection(label.equals("English")?View.TEXT_DIRECTION_LTR:View.TEXT_DIRECTION_RTL);
+        row.addView(t,new LinearLayout.LayoutParams(0,dp(52),1));
+        return row;
+    }
+
+    private void showSplash(){
+        setScreen("splash");
+        FrameLayout root=screenFrame();
+
+        LinearLayout center=new LinearLayout(this);
+        center.setOrientation(LinearLayout.VERTICAL);
+        center.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        center.addView(logo,new LinearLayout.LayoutParams(dp(170),dp(170)));
+        addGap(center,18);
+
+        TextView title=brandText(31);
+        center.addView(title,new LinearLayout.LayoutParams(-1,dp(46)));
+
+        TextView sub=text(tr("هندسة برومبتات دقيقة","Precision Prompt Engineering"),14,MUTED,false);
         sub.setGravity(Gravity.CENTER);
-        page.addView(sub, matchHeight(36));
-        addSpace(page, 24);
-        EditText username = input(tr("اسم المستخدم","Username"));
-        EditText password = input(tr("كلمة المرور","Password"));
-        password.setInputType(0x00000081);
-        page.addView(username, matchHeight(56));
-        addSpace(page, 12);
-        page.addView(password, matchHeight(56));
-        addSpace(page, 18);
-        Button signIn = button(tr("تسجيل الدخول","Sign in"), true);
-        page.addView(signIn, matchHeight(58));
-        signIn.setOnClickListener(v -> {
-            String u = username.getText().toString().trim();
-            String p = password.getText().toString();
-            if (u.length() < 3 || p.isEmpty()) {
-                toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter your username and password"));
-                return;
-            }
-            signIn.setEnabled(false);
-            signIn.setText(tr("جارٍ التحقق...","Signing in..."));
-            remote.login(BASE_URL, u, p, storage.deviceId(), (ok, value) -> runOnUiThread(() -> {
-                signIn.setEnabled(true);
-                signIn.setText(tr("تسجيل الدخول","Sign in"));
-                if (!ok) {
-                    toast(loginError(value));
+        center.addView(sub,new LinearLayout.LayoutParams(-1,dp(34)));
+
+        addGap(center,28);
+        GradientLine progress=new GradientLine(this);
+        center.addView(progress,new LinearLayout.LayoutParams(dp(160),dp(4)));
+
+        FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2);
+        cp.gravity=Gravity.CENTER;
+        cp.leftMargin=dp(22);cp.rightMargin=dp(22);
+        root.addView(center,cp);
+        showRoot(root);
+        new Handler(Looper.getMainLooper()).postDelayed(this::loginScreen,1050);
+    }
+
+    private void loginScreen(){
+        setScreen("login");
+        LinearLayout r=column();
+        r.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        r.addView(loginHeader(),new LinearLayout.LayoutParams(-1,dp(54)));
+        addGap(r,16);
+
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        LinearLayout holder=new LinearLayout(this);
+        holder.setGravity(Gravity.CENTER);
+        holder.addView(logo,new LinearLayout.LayoutParams(dp(104),dp(104)));
+        r.addView(holder,new LinearLayout.LayoutParams(-1,dp(110)));
+
+        addGap(r,10);
+        TextView head=text(tr("مرحباً بعودتك","Welcome back"),27,WHITE,true);
+        head.setGravity(Gravity.CENTER);
+        r.addView(head,new LinearLayout.LayoutParams(-1,dp(42)));
+
+        TextView sub=text(tr("ادخل إلى مساحة هندسة البرومبتات الخاصة بك","Enter your prompt-engineering workspace"),13,MUTED,false);
+        sub.setGravity(Gravity.CENTER);
+        r.addView(sub,new LinearLayout.LayoutParams(-1,dp(34)));
+        addGap(r,18);
+
+        LinearLayout form=new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(16),dp(16),dp(16),dp(16));
+        form.setBackground(rounded(PANEL,BORDER2,28));
+
+        EditText user=editor("اسم المستخدم","Username",1);
+        user.setSingleLine(true);
+        form.addView(user,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(form,10);
+
+        EditText pass=editor("كلمة المرور","Password",1);
+        pass.setSingleLine(true);
+        pass.setInputType(0x00000081);
+        form.addView(pass,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(form,14);
+
+        TextView login=button(tr("دخول","Sign in"),true);
+
+        LinearLayout loginProgress=new LinearLayout(this);
+        loginProgress.setGravity(Gravity.CENTER);
+        loginProgress.setVisibility(View.GONE);
+        loginProgress.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+
+        ProgressBar loginSpinner=new ProgressBar(this);
+        loginSpinner.setIndeterminate(true);
+        loginSpinner.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(CYAN));
+        loginProgress.addView(loginSpinner,new LinearLayout.LayoutParams(dp(18),dp(18)));
+
+        TextView loginStatus=text(tr("جارٍ تسجيل الدخول…","Signing in…"),12,MUTED,false);
+        loginStatus.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams statusLp=new LinearLayout.LayoutParams(-2,dp(28));
+        statusLp.setMargins(dp(8),0,0,0);
+        loginProgress.addView(loginStatus,statusLp);
+
+        login.setOnClickListener(v->{
+            String u=user.getText().toString().trim(),p=pass.getText().toString();
+            if(u.isEmpty()||p.isEmpty()){toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter username and password"));return;}
+            login.setEnabled(false);
+            login.setAlpha(0.65f);
+            loginProgress.setVisibility(View.VISIBLE);
+            new RemotePromptClient().login(BASE_URL,u,p,s.deviceId(),(ok,val)->runOnUiThread(()->{
+                login.setEnabled(true);
+                login.setAlpha(1f);
+                loginProgress.setVisibility(View.GONE);
+                if(!ok){
+                    String err=val==null?"":val.trim();
+                    if(err.contains("auth_not_configured"))toast(tr("الخادم غير مهيأ للمصادقة","Server authentication is not configured"));
+                    else if(err.contains("invalid_credentials"))toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين","Invalid username or password"));
+                    else if(err.contains("device_already_bound"))toast(tr("هذا الحساب مستخدم على جهاز آخر","This account is already bound to another device"));
+                    else if(err.contains("device_id_required"))toast(tr("تعذر التعرف على الجهاز","Could not identify this device"));
+                    else if(err.isEmpty())toast(tr("تعذر الاتصال بالخادم","Could not reach the server"));
+                    else toast(tr("تعذر تسجيل الدخول: "+err,"Sign-in failed: "+err));
                     return;
                 }
-                try {
-                    JSONObject response = new JSONObject(value);
-                    token = response.optString("token", "");
-                    boolean admin = response.optBoolean("admin", false);
-                    if (token.isEmpty()) {
-                        toast(tr("استجابة تسجيل الدخول غير صالحة","Invalid login response"));
-                        return;
-                    }
-                    storage.account(u, token, admin);
-                    if (admin) openAdmin();
-                    else showHome();
-                } catch (Exception e) {
-                    toast(tr("تعذر قراءة استجابة تسجيل الدخول","Could not read login response"));
+                try{
+                    org.json.JSONObject j=new org.json.JSONObject(val);
+                    boolean admin=j.optBoolean("admin",false);
+                    s.account(j.optString("username",""),j.optString("token",""),admin);
+                    s.accountPremium(false);
+                    toast(tr("تم تسجيل الدخول","Signed in"));
+                    home();
+                }catch(Exception e){
+                    toast(tr("تعذر قراءة استجابة الخادم","Invalid server response"));
                 }
             }));
         });
-        addSpace(page, 18);
-        TextView note = text(tr("لا يوجد اشتراك مدفوع أو إعلانات داخل التطبيق.","No paid subscription or ads in the app."), 12, MUTED, false);
-        note.setGravity(Gravity.CENTER);
-        page.addView(note, matchHeight(40));
-        showRoot();
+        form.addView(login,new LinearLayout.LayoutParams(-1,dp(60)));
+        form.addView(loginProgress,new LinearLayout.LayoutParams(-1,dp(32)));
+
+        TextView hint=text(tr("مساحتك الخاصة لصناعة برومبتات أدق وأقوى","Your private workspace for better prompts"),12,MUTED2,false);
+        hint.setGravity(Gravity.CENTER);
+        hint.setPadding(0,dp(10),0,0);
+        form.addView(hint,new LinearLayout.LayoutParams(-1,dp(30)));
+
+        r.addView(form,new LinearLayout.LayoutParams(-1,-2));
+        addGap(r,12);
+
+        showRoot(scroll(r));
     }
 
-    private String loginError(String raw) {
-        if (raw == null) return tr("تعذر الاتصال بالسيرفر","Could not connect to server");
-        if (raw.contains("http_401")) return tr("اسم المستخدم أو كلمة المرور غير صحيحة","Incorrect username or password");
-        if (raw.contains("http_409")) return tr("هذا الحساب مرتبط بجهاز آخر","This account is bound to another device");
-        if (raw.contains("http_503")) return tr("إعدادات تسجيل الدخول غير مكتملة على السيرفر","Server authentication is not configured");
-        return tr("فشل تسجيل الدخول. تحقق من الإنترنت وحاول مجدداً.","Sign-in failed. Check your connection and try again.");
-    }
+    private void home(){
+        setScreen("home");
+        FrameLayout root=screenFrame();
 
-    private void showHome() {
-        screen = "home";
-        root = newRoot();
-        LinearLayout page = column(18);
-        root.addView(page, matchWrap());
-        addHeader(page, tr("مساحة العمل","Workspace"));
-        TextView greeting = text(tr("أهلاً، ","Welcome, ") + storage.accountUser(), 18, WHITE, true);
-        page.addView(greeting, matchHeight(42));
-        TextView description = text(tr("حوّل فكرتك إلى برومبت واضح ومخصص للأداة التي تختارها.","Turn your idea into a clear prompt tailored to your selected AI tool."), 14, MUTED, false);
-        page.addView(description, matchWrap());
-        addSpace(page, 14);
-        addActionCard(page, tr("إنشاء برومبت","Create a prompt"), tr("اكتب فكرتك واختر الأداة المناسبة","Describe your idea and choose a target tool"), "✦", () -> showGenerate());
-        addActionCard(page, tr("برومبت عشوائي","Random prompt"), tr("صورة أو قصيدة أو نكتة أو أغنية مع اسم تختاره","Image, poem, joke, or song with a name"), "✧", () -> showRandom());
-        addActionCard(page, tr("سجل البرومبتات","Prompt history"), tr("راجع آخر النتائج التي أنشأتها على هذا الجهاز","Review recent results saved on this device"), "◷", () -> showHistory());
-        addSpace(page, 14);
-        if (storage.isAdmin()) {
-            Button admin = button(tr("لوحة تحكم الأدمن","Admin dashboard"), false);
-            page.addView(admin, matchHeight(54));
-            admin.setOnClickListener(v -> openAdmin());
-            addSpace(page, 10);
+        ScrollView sc=new ScrollView(this);
+        sc.setFillViewport(true);
+        sc.setVerticalScrollBarEnabled(false);
+
+        LinearLayout r=column();
+        r.setPadding(dp(18),dp(10),dp(18),dp(108));
+
+        FrameLayout header=homeHeader();
+        r.addView(header,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(r,14);
+
+        r.addView(welcomeCard(),new LinearLayout.LayoutParams(-1,dp(94)));
+        addGap(r,18);
+
+        TextView quickHead=text(tr("مساحة العمل","Workspace"),18,WHITE,true);
+        r.addView(quickHead,new LinearLayout.LayoutParams(-1,dp(30)));
+        addGap(r,8);
+
+        LinearLayout quickRow=new LinearLayout(this);
+        quickRow.setOrientation(LinearLayout.HORIZONTAL);
+        quickRow.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        View create=quickAction(tr("إنشاء برومبت","Create Prompt"),tr("ابدأ من فكرة جديدة","Start from an idea"),"spark",true,v->create());
+        View improve=quickAction(tr("تحسين برومبت","Improve Prompt"),tr("طوّر برومبت موجوداً","Upgrade an existing prompt"),"edit",false,v->improve());
+        quickRow.addView(create,new LinearLayout.LayoutParams(0,dp(96),1));
+        Space qg=new Space(this); quickRow.addView(qg,new LinearLayout.LayoutParams(dp(9),1));
+        quickRow.addView(improve,new LinearLayout.LayoutParams(0,dp(96),1));
+        r.addView(quickRow,new LinearLayout.LayoutParams(-1,dp(96)));
+
+        addGap(r,20);
+        TextView ph=text(tr("اختر الأداة التي تريد استخدامها","Choose the tool you want to use"),19,WHITE,true);
+        r.addView(ph,new LinearLayout.LayoutParams(-1,dp(32)));
+        addGap(r,4);
+        TextView psNote=text(tr("أدوات مختارة للوصول السريع","Curated tools for quick access"),12,MUTED2,false);
+        r.addView(psNote,new LinearLayout.LayoutParams(-1,dp(26)));
+        addGap(r,8);
+
+        LinearLayout[] rows=new LinearLayout[4];
+        String[][] featured={{"ChatGPT","Claude"},{"Gemini","Midjourney"},{"Perplexity","Stable Diffusion"},{"ElevenLabs","Runway"}};
+        for(int i=0;i<4;i++){
+            rows[i]=new LinearLayout(this);
+            rows[i].setOrientation(LinearLayout.HORIZONTAL);
+            rows[i].setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+            View a=platformTile(featured[i][0],v->{sel=featured[0][0];create();});
+            View b=platformTile(featured[i][1],v->{sel=featured[0][1];create();});
+            final String na=featured[i][0], nb=featured[i][1];
+            a.setOnClickListener(v->{sel=na;create();});
+            b.setOnClickListener(v->{sel=nb;create();});
+            rows[i].addView(a,new LinearLayout.LayoutParams(0,dp(82),1));
+            Space g=new Space(this);rows[i].addView(g,new LinearLayout.LayoutParams(dp(9),1));
+            rows[i].addView(b,new LinearLayout.LayoutParams(0,dp(82),1));
+            r.addView(rows[i],new LinearLayout.LayoutParams(-1,dp(82)));
+            if(i<3)addGap(r,8);
         }
-        Button logout = button(tr("تسجيل الخروج","Sign out"), false);
-        page.addView(logout, matchHeight(52));
-        logout.setOnClickListener(v -> {
-            storage.logout();
-            token = "";
-            showLogin();
-        });
-        showRoot();
-    }
 
-    private void showGenerate() {
-        push("generate");
-        screen = "generate";
-        root = newRoot();
-        LinearLayout page = column(18);
-        root.addView(page, matchWrap());
-        addHeader(page, tr("إنشاء برومبت","Create prompt"));
-        TextView toolLabel = text(tr("الأداة المستهدفة","Target tool"), 14, MUTED, true);
-        page.addView(toolLabel, matchHeight(30));
-        platformSpinner = new Spinner(this);
-        List<String> names = new ArrayList<>();
-        for (Platform p : platforms) names.add(p.name);
-        ArrayAdapter<String> platformAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
-        platformAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        platformSpinner.setAdapter(platformAdapter);
-        page.addView(platformSpinner, matchHeight(52));
-        addSpace(page, 12);
-        page.addView(text(tr("نوع المهمة","Task type"), 14, MUTED, true), matchHeight(30));
-        taskSpinner = new Spinner(this);
-        String[] tasks = {"General", "Image prompt", "Video prompt", "Voice / TTS", "Music", "Coding", "Research", "Education", "Marketing", "Business", "Writing"};
-        ArrayAdapter<String> taskAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, tasks);
-        taskAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        taskSpinner.setAdapter(taskAdapter);
-        page.addView(taskSpinner, matchHeight(52));
-        addSpace(page, 12);
-        page.addView(text(tr("اشرح فكرتك بلغتك الطبيعية","Describe your idea in your own language"), 14, MUTED, true), matchHeight(30));
-        ideaInput = input(tr("مثال: صورة سينمائية لمسرح مهجور بعد نهاية العالم...","Example: a cinematic image of an abandoned theater after the apocalypse..."));
-        ideaInput.setGravity(Gravity.TOP | Gravity.START);
-        ideaInput.setSingleLine(false);
-        ideaInput.setMinLines(5);
-        ideaInput.setPadding(dp(14), dp(14), dp(14), dp(14));
-        page.addView(ideaInput, matchHeight(142));
-        addSpace(page, 16);
-        Button generate = button(tr("✦  أنشئ البرومبت","✦  Generate prompt"), true);
-        page.addView(generate, matchHeight(58));
-        generate.setOnClickListener(v -> generatePrompt(generate));
-        addSpace(page, 18);
-        generatedOutput = text("", 15, WHITE, false);
-        generatedOutput.setTextIsSelectable(true);
-        generatedOutput.setPadding(dp(14), dp(14), dp(14), dp(14));
-        generatedOutput.setBackground(panelBackground());
-        page.addView(generatedOutput, matchWrap());
-        Button copy = button(tr("نسخ النتيجة","Copy result"), false);
-        page.addView(copy, matchHeight(50));
-        copy.setOnClickListener(v -> {
-            String result = generatedOutput.getText().toString().trim();
-            if (result.isEmpty()) toast(tr("لا توجد نتيجة لنسخها","There is no result to copy"));
-            else {
-                android.content.ClipboardManager clipboard = (android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("PromptForge prompt", result));
-                toast(tr("تم نسخ البرومبت","Prompt copied"));
+        addGap(r,12);
+        View all=wideAction(tr("كل المنصات والأدوات","All AI Platforms"),tr("تصفّح كامل الكتالوج — "+ps.size()+" أداة ومنصة","Browse the full catalog — "+ps.size()+" tools"),"grid",v->platforms());
+        r.addView(all,new LinearLayout.LayoutParams(-1,dp(68)));
+
+        addGap(r,20);
+        TextView recentHead=text(tr("المحادثات الأخيرة","Recent prompts"),18,WHITE,true);
+        r.addView(recentHead,new LinearLayout.LayoutParams(-1,dp(30)));
+        addGap(r,8);
+
+        List<String> history=s.list("history");
+        int count=Math.min(3,history.size());
+        if(count==0){
+            FrameLayout empty=emptyState();
+            r.addView(empty,new LinearLayout.LayoutParams(-1,dp(86)));
+        }else{
+            for(int i=0;i<count;i++){
+                final String value=history.get(i);
+                FrameLayout row=recentRow(value,i);
+                r.addView(row,new LinearLayout.LayoutParams(-1,dp(78)));
+                if(i<count-1)addGap(r,8);
             }
-        });
-        showRoot();
-    }
-
-    private void generatePrompt(Button generate) {
-        String idea = ideaInput.getText().toString().trim();
-        if (idea.length() < 3) {
-            toast(tr("اكتب فكرتك أولاً","Enter your idea first"));
-            return;
         }
-        if (busy) return;
-        busy = true;
-        generate.setEnabled(false);
-        generate.setText(tr("جارٍ إنشاء برومبت احترافي...","Generating professional prompt..."));
-        generatedOutput.setText(tr("يتم تحليل الفكرة وإنشاء النتيجة...","Analyzing the idea and generating the result..."));
-        String platform = String.valueOf(platformSpinner.getSelectedItem());
-        String task = String.valueOf(taskSpinner.getSelectedItem());
-        remote.generate(BASE_URL, idea, platform, task, "English", token, (ok, value) -> runOnUiThread(() -> {
-            busy = false;
-            generate.setEnabled(true);
-            generate.setText(tr("✦  أنشئ البرومبت","✦  Generate prompt"));
-            if (!ok) {
-                generatedOutput.setText("");
-                if (value != null && value.contains("http_502")) {
-                    toast(tr("المحرك رفض نتيجة ضعيفة. جرّب مرة أخرى بعد قليل.","The engine rejected a weak result. Please retry shortly."));
-                } else if (value != null && value.contains("http_401")) {
-                    toast(tr("انتهت الجلسة. سجّل الدخول مجدداً.","Session expired. Please sign in again."));
-                    storage.logout();
-                    token = "";
-                    showLogin();
-                } else if (value != null && value.contains("http_429")) {
-                    toast(tr("وصلت إلى حد الطلبات المؤقت. انتظر قليلاً.","Temporary request limit reached. Please wait."));
-                } else {
-                    toast(tr("تعذر إنشاء البرومبت. تحقق من الاتصال وحاول مجدداً.","Prompt generation failed. Check your connection and retry."));
-                }
-                return;
+
+        r.addView(bottomSpacer(),new LinearLayout.LayoutParams(-1,dp(8)));
+        sc.addView(r);
+        FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-1,-1);
+        root.addView(sc,sp);
+
+        View nav=bottomNav();
+        FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-1,dp(82));
+        np.gravity=Gravity.BOTTOM;
+        root.addView(nav,np);
+        showRoot(root);
+    }
+
+    private FrameLayout homeHeader(){
+        FrameLayout top=new FrameLayout(this);
+
+        PFIconView menu=new PFIconView(this,"menu",WHITE);
+        menu.setClickable(true);
+        menu.setOnClickListener(v->menuDialog());
+        FrameLayout.LayoutParams mp=new FrameLayout.LayoutParams(dp(44),dp(44));
+        mp.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        top.addView(menu,mp);
+
+        TextView brand=brandText(20);
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,dp(48));
+        bp.gravity=Gravity.CENTER;
+        top.addView(brand,bp);
+
+        FrameLayout userDot=new FrameLayout(this);
+        userDot.setBackground(gradient(16));
+        PFIconView ui=new PFIconView(this,"user",WHITE);
+        userDot.addView(ui,new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));
+        FrameLayout.LayoutParams up=new FrameLayout.LayoutParams(dp(40),dp(40));
+        up.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        top.addView(userDot,up);
+        return top;
+    }
+
+    private FrameLayout welcomeCard(){
+        FrameLayout box=panel(25);
+        box.setBackground(gradientPanel(25));
+
+        PFIconView spark=new PFIconView(this,"spark",WHITE);
+        FrameLayout orb=new FrameLayout(this);
+        orb.setBackground(rounded(Color.argb(70,67,105,255),0,22));
+        orb.addView(spark,new FrameLayout.LayoutParams(dp(25),dp(25),Gravity.CENTER));
+        FrameLayout.LayoutParams op=new FrameLayout.LayoutParams(dp(48),dp(48));
+        op.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        op.rightMargin=ar()?dp(16):0;
+        op.leftMargin=ar()?0:dp(16);
+        box.addView(orb,op);
+
+        LinearLayout texts=new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setGravity(Gravity.CENTER_VERTICAL);
+        TextView h=text(tr("أهلاً بعودتك!","Welcome back!"),17,WHITE,true);
+        TextView d=text(tr("أنشئ، حسّن، ولّد. كل شيء في مساحة واحدة.","Create, improve and generate — all in one workspace."),12,MUTED,false);
+        texts.addView(h,new LinearLayout.LayoutParams(-1,dp(28)));
+        texts.addView(d,new LinearLayout.LayoutParams(-1,dp(32)));
+
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,-1);
+        if(ar()){tp.rightMargin=dp(76);tp.leftMargin=dp(70);}else{tp.leftMargin=dp(76);tp.rightMargin=dp(70);}
+        box.addView(texts,tp);
+
+        PFIconView star=new PFIconView(this,"star",PURPLE);
+        FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(dp(32),dp(32));
+        sp.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        sp.rightMargin=ar()?0:dp(14);
+        sp.leftMargin=ar()?dp(14):0;
+        box.addView(star,sp);
+        return box;
+    }
+
+    private FrameLayout quickAction(String title,String desc,String icon,boolean primary,View.OnClickListener click){
+        FrameLayout holder=new FrameLayout(this);
+        holder.setBackground(primary?gradient(22):rounded(PANEL,BORDER2,22));
+        holder.setClickable(true);
+        holder.setFocusable(true);
+        holder.setOnClickListener(click);
+
+        PFIconView ic=new PFIconView(this,icon,primary?WHITE:CYAN);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(30),dp(30));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(12):0;
+        ip.leftMargin=ar()?0:dp(12);
+        holder.addView(ic,ip);
+
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.setGravity(Gravity.CENTER_VERTICAL);
+        tx.addView(text(title,14,WHITE,true),new LinearLayout.LayoutParams(-1,dp(24)));
+        tx.addView(text(desc,10,primary?Color.argb(225,255,255,255):MUTED,false),new LinearLayout.LayoutParams(-1,dp(24)));
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(58));
+        tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(52);else tp.leftMargin=dp(52);
+        holder.addView(tx,tp);
+        return holder;
+    }
+
+    private FrameLayout platformTile(String name,View.OnClickListener click){
+        return platformCard(name,click);
+    }
+
+    private FrameLayout platformCard(String name,View.OnClickListener click){
+        FrameLayout box=panel(20);
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setOnClickListener(click);
+
+        PlatformIconView ic=new PlatformIconView(this,name);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(40),dp(40));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(12):0;
+        ip.leftMargin=ar()?0:dp(12);
+        box.addView(ic,ip);
+
+        TextView label=text(name,12,WHITE,true);
+        label.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,dp(34));
+        if(ar())lp.rightMargin=dp(60);else lp.leftMargin=dp(60);
+        lp.gravity=Gravity.CENTER_VERTICAL;
+        box.addView(label,lp);
+
+        return box;
+    }
+
+    private FrameLayout wideAction(String title,String desc,String icon,View.OnClickListener click){
+        FrameLayout box=panel(22);
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setOnClickListener(click);
+
+        PFIconView ic=new PFIconView(this,icon,BLUE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(28),dp(28));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(14):0;
+        ip.leftMargin=ar()?0:dp(14);
+        box.addView(ic,ip);
+
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.setGravity(Gravity.CENTER_VERTICAL);
+        tx.addView(text(title,14,WHITE,true),new LinearLayout.LayoutParams(-1,dp(25)));
+        tx.addView(text(desc,11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(22)));
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(56));
+        tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
+        box.addView(tx,tp);
+
+        PFIconView arrow=new PFIconView(this,ar()?"arrowLeft":"arrowRight",MUTED);
+        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(22),dp(22));
+        ap.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        ap.rightMargin=ar()?0:dp(12);
+        ap.leftMargin=ar()?dp(12):0;
+        box.addView(arrow,ap);
+        return box;
+    }
+
+    private FrameLayout emptyState(){
+        FrameLayout box=panel(22);
+        PFIconView ic=new PFIconView(this,"chat",MUTED2);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(28),dp(28));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(14):0;ip.leftMargin=ar()?0:dp(14);
+        box.addView(ic,ip);
+        TextView t=text(tr("ابدأ بإنشاء أول برومبت لتظهر محادثاتك هنا.","Create your first prompt to see your recent activity here."),12,MUTED,false);
+        t.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,-1);
+        if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
+        box.addView(t,tp);
+        return box;
+    }
+
+    private FrameLayout recentRow(String value,int index){
+        FrameLayout box=panel(20);
+        box.setClickable(true);box.setFocusable(true);
+        box.setOnClickListener(v->{last=value;result();});
+
+        PFIconView ic=new PFIconView(this,index==0?"spark":"chat",index==0?PURPLE:BLUE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(38),dp(38));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(12):0;ip.leftMargin=ar()?0:dp(12);
+        box.addView(ic,ip);
+
+        String title=historyTitle(value);
+        TextView h=text(title,13,WHITE,true);
+        TextView d=text(tr("برومبت محفوظ في السجل","Saved in recent activity"),10,MUTED2,false);
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.setGravity(Gravity.CENTER_VERTICAL);
+        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(28)));
+        tx.addView(d,new LinearLayout.LayoutParams(-1,dp(20)));
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(54));
+        tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(62);else tp.leftMargin=dp(62);
+        box.addView(tx,tp);
+
+        PFIconView arrow=new PFIconView(this,ar()?"arrowLeft":"arrowRight",MUTED);
+        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(20),dp(20));
+        ap.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        ap.rightMargin=ar()?0:dp(12);ap.leftMargin=ar()?dp(12):0;
+        box.addView(arrow,ap);
+        return box;
+    }
+
+    private String historyTitle(String value){
+        if(value==null||value.trim().isEmpty())return tr("برومبت جديد","New prompt");
+        String v=value.replaceAll("\\s+"," ").trim();
+        if(v.length()>44)v=v.substring(0,44)+"…";
+        return v;
+    }
+
+    private View bottomNav(){
+        FrameLayout bar=new FrameLayout(this);
+        GradientDrawable bg=rounded(Color.argb(244,7,14,30),Color.rgb(27,46,80),24);
+        bar.setBackground(bg);
+
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        row.setPadding(dp(4),dp(5),dp(4),dp(5));
+
+        row.addView(navItem("home",tr("الرئيسية","Home"),"home",true),new LinearLayout.LayoutParams(0,-1,1));
+        row.addView(navItem("tools",tr("الأدوات","Tools"),"grid",false),new LinearLayout.LayoutParams(0,-1,1));
+        row.addView(navItem("history",tr("المحادثات","Chats"),"chat",false),new LinearLayout.LayoutParams(0,-1,1));
+        row.addView(navItem("settings",tr("الإعدادات","Settings"),"settings",false),new LinearLayout.LayoutParams(0,-1,1));
+        bar.addView(row,new FrameLayout.LayoutParams(-1,-1));
+        return bar;
+    }
+
+    private FrameLayout navItem(String id,String label,String icon,boolean active){
+        FrameLayout holder=new FrameLayout(this);
+        holder.setClickable(true);
+        holder.setFocusable(true);
+        holder.setOnClickListener(v->{
+            if("home".equals(id))home();
+            else if("tools".equals(id))platforms();
+            else if("history".equals(id))listScreen("history");
+            else settings();
+        });
+
+        LinearLayout item=new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.addView(new PFIconView(this,icon,active?PURPLE:MUTED),new LinearLayout.LayoutParams(dp(28),dp(28)));
+        TextView t=text(label,9,active?WHITE:MUTED,true);
+        t.setGravity(Gravity.CENTER);
+        item.addView(t,new LinearLayout.LayoutParams(-1,dp(20)));
+        holder.addView(item,new FrameLayout.LayoutParams(-1,-1));
+        return holder;
+    }
+
+    private View bottomSpacer(){return new Space(this);}
+
+    private void menuDialog(){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+
+        LinearLayout top=new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        top.addView(logo,new LinearLayout.LayoutParams(dp(50),dp(50)));
+        LinearLayout tt=new LinearLayout(this);
+        tt.setOrientation(LinearLayout.VERTICAL);
+        tt.setPadding(dp(10),0,dp(10),0);
+        tt.addView(text(tr("قائمة PromptForge","PromptForge menu"),17,WHITE,true),new LinearLayout.LayoutParams(-1,dp(28)));
+        tt.addView(text(s.accountUser().isEmpty()?tr("مساحة عملك الذكية","Your smart workspace"):s.accountUser(),11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(24)));
+        top.addView(tt,new LinearLayout.LayoutParams(0,dp(52),1));
+        box.addView(top,new LinearLayout.LayoutParams(-1,dp(54)));
+        addGap(box,12);
+
+        addMenuRow(box,tr("إنشاء برومبت","Create Prompt"),"spark",v->{d.dismiss();create();});
+        addMenuRow(box,tr("تحسين برومبت","Improve Prompt"),"edit",v->{d.dismiss();improve();});
+        addMenuRow(box,tr("برومبت عشوائي","Random Prompt"),"spark",v->{d.dismiss();randomPrompt();});
+        addMenuRow(box,tr("كل المنصات والأدوات","All AI Platforms"),"grid",v->{d.dismiss();platforms();});
+        addMenuRow(box,tr("المحادثات المحفوظة","Saved & History"),"chat",v->{d.dismiss();listScreen("history");});
+        addMenuRow(box,tr("حسابي","My Account"),"user",v->{d.dismiss();account();});
+        addMenuRow(box,tr("الإعدادات","Settings"),"settings",v->{d.dismiss();settings();});
+        addGap(box,8);
+        TextView close=button(tr("إغلاق","Close"),false);
+        close.setOnClickListener(v->d.dismiss());
+        box.addView(close,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        d.setContentView(box);
+        sizeDialog(d,0.90f);
+        d.show();sizeDialog(d,0.90f);
+    }
+
+    private void addMenuRow(LinearLayout box,String label,String icon,View.OnClickListener click){
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        row.setPadding(dp(12),0,dp(12),0);
+        row.setBackground(rounded(PANEL2,BORDER,18));
+        row.setClickable(true);row.setOnClickListener(click);
+
+        PFIconView ic=new PFIconView(this,icon,BLUE);
+        row.addView(ic,new LinearLayout.LayoutParams(dp(28),dp(28)));
+        TextView t=text(label,14,WHITE,true);
+        t.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        row.addView(t,new LinearLayout.LayoutParams(0,dp(52),1));
+        PFIconView a=new PFIconView(this,ar()?"arrowLeft":"arrowRight",MUTED);
+        row.addView(a,new LinearLayout.LayoutParams(dp(22),dp(22)));
+        box.addView(row,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(box,7);
+    }
+
+    private EditText editor(String arHint,String enHint,int minLines){
+        EditText e=new EditText(this);
+        e.setTextColor(WHITE);
+        e.setHintTextColor(MUTED2);
+        e.setHint(bidi(tr(arHint,enHint)));
+        e.setTextSize(15);
+        e.setGravity(ar()?Gravity.TOP|Gravity.RIGHT:Gravity.TOP|Gravity.LEFT);
+        e.setTextDirection(ar()?View.TEXT_DIRECTION_FIRST_STRONG:View.TEXT_DIRECTION_LTR);
+        e.setPadding(dp(16),dp(15),dp(16),dp(15));
+        e.setMinLines(minLines);
+        e.setBackground(rounded(PANEL2,BORDER2,22));
+        return e;
+    }
+
+    private void create(){
+        setScreen("create");
+        LinearLayout r=column();
+        titleBar(r,"إنشاء برومبت","Create Prompt");
+        addGap(r,10);
+
+        LinearLayout selected=new LinearLayout(this);
+        selected.setGravity(Gravity.CENTER_VERTICAL);
+        selected.setPadding(dp(12),0,dp(12),0);
+        selected.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        selected.setBackground(rounded(PANEL,BORDER,18));
+        PlatformIconView pic=new PlatformIconView(this,sel);
+        selected.addView(pic,new LinearLayout.LayoutParams(dp(36),dp(36)));
+        TextView st=text(tr("الأداة المحددة: ","Selected tool: ")+sel,13,WHITE,true);
+        st.setGravity(Gravity.CENTER);
+        selected.addView(st,new LinearLayout.LayoutParams(0,dp(48),1));
+        selected.setClickable(true);
+        selected.setOnClickListener(v->platforms());
+        r.addView(selected,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        addGap(r,10);
+        TextView label=text(tr("ما الذي تريد إنجازه؟","What do you want to achieve?"),16,WHITE,true);
+        r.addView(label,new LinearLayout.LayoutParams(-1,dp(28)));
+        addGap(r,6);
+
+        EditText idea=editor("اكتب فكرتك هنا...","Describe your idea...",7);
+        r.addView(idea,new LinearLayout.LayoutParams(-1,dp(205)));
+
+        addGap(r,10);
+        TextView taskBtn=button(taskLabel(),false);
+        taskBtn.setOnClickListener(v->taskDialog(taskBtn));
+        r.addView(taskBtn,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(r,10);
+
+        TextView hint=text(tr("سنحافظ على فكرتك ونبني حولها برومبتاً ملائماً للأداة المختارة.","We preserve your intent and shape it for the selected tool."),11,MUTED2,false);
+        r.addView(hint,new LinearLayout.LayoutParams(-1,dp(34)));
+
+        addGap(r,8);
+        TextView gen=button(tr("✦  توليد البرومبت","✦  Generate Prompt"),true);
+        gen.setOnClickListener(v->{
+            String ideaText=idea.getText().toString();
+            if(ideaText.trim().length()<3){toast(tr("اكتب فكرتك أولاً","Describe your idea first"));return;}
+            gen.setEnabled(false);
+            generate(ideaText,gen);
+        });
+        r.addView(gen,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        addGap(r,8);
+        TextView remain=text(tr("الاستخدام المتاح: ","Available usage: ")+s.remaining(),11,MUTED2,false);
+        remain.setGravity(Gravity.CENTER);
+        r.addView(remain,new LinearLayout.LayoutParams(-1,dp(26)));
+
+        showRoot(scroll(r));
+    }
+
+    private String taskName(){
+        if(!ar())return task;
+        if(task.equals("General"))return"عام";
+        if(task.equals("Marketing"))return"تسويق";
+        if(task.equals("Image prompt"))return"برومبت صورة";
+        if(task.equals("Video prompt"))return"برومبت فيديو";
+        if(task.equals("Voice / TTS"))return"صوت / TTS";
+        if(task.equals("Coding"))return"برمجة";
+        if(task.equals("Research"))return"بحث";
+        if(task.equals("Education"))return"تعليم";
+        if(task.equals("Social media"))return"سوشيال ميديا";
+        if(task.equals("Business"))return"أعمال";
+        return task;
+    }
+
+    private String taskLabel(){return tr("نوع المهمة: ","Task type: ")+bidi(taskName());}
+
+    private void taskDialog(TextView target){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+        TextView title=text(tr("اختر نوع المهمة","Choose task type"),20,WHITE,true);
+        title.setGravity(Gravity.CENTER);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(42)));
+        addGap(box,8);
+
+        String[] items=ar()
+            ?new String[]{"عام","تسويق","برومبت صورة","برومبت فيديو","صوت / TTS","برمجة","بحث","تعليم","سوشيال ميديا","أعمال"}
+            :new String[]{"General","Marketing","Image prompt","Video prompt","Voice / TTS","Coding","Research","Education","Social media","Business"};
+        String[] canonical={"General","Marketing","Image prompt","Video prompt","Voice / TTS","Coding","Research","Education","Social media","Business"};
+
+        for(int i=0;i<items.length;i++){
+            final int idx=i;
+            TextView row=button(items[i],canonical[i].equals(task));
+            row.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(16),0,dp(16),0);
+            row.setOnClickListener(v->{task=canonical[idx];target.setText(bidi(taskLabel()));d.dismiss();});
+            box.addView(row,new LinearLayout.LayoutParams(-1,dp(50)));
+            if(i<items.length-1)addGap(box,6);
+        }
+        d.setContentView(box);
+        sizeDialog(d,0.90f);d.show();sizeDialog(d,0.90f);
+    }
+
+    private void generate(String idea,TextView sourceButton){
+        toast(tr("جارٍ توليد البرومبت…","Generating prompt…"));
+        new RemotePromptClient().generate(BASE_URL,idea,sel,task,"English",s.accountToken(),(ok,val)->runOnUiThread(()->{
+            sourceButton.setEnabled(true);
+            if(ok){
+                last=val;
+                s.add("history",last);
+                result();
+            }else{
+                toast(tr("تعذر إنشاء البرومبت من الخادم. تحقق من الاتصال وحاول مجدداً.","Could not generate the prompt from the server. Check the connection and try again."));
             }
-            String result = value == null ? "" : value.trim();
-            if (result.length() < 20) {
-                toast(tr("وصلت نتيجة غير مكتملة؛ لم يتم حفظها.","An incomplete result was received and was not saved."));
-                generatedOutput.setText("");
-                return;
-            }
-            generatedOutput.setText(result);
-            storage.add("history", result);
-            storage.add("history_meta", platform + " • " + task);
-            toast(tr("تم إنشاء البرومبت","Prompt generated"));
         }));
     }
 
-    private void showRandom() {
-        push("random");
-        screen = "random";
-        root = newRoot();
-        LinearLayout page = column(18);
-        root.addView(page, matchWrap());
-        addHeader(page, tr("برومبت عشوائي","Random prompt"));
-        page.addView(text(tr("اختر نوعاً وأضف اسماً إن أردت تخصيص النتيجة.","Choose a type and optionally personalize it with a name."), 14, MUTED, false), matchWrap());
-        randomType = new Spinner(this);
-        String[] types = {tr("صورة","Image"), tr("قصيدة","Poem"), tr("نكتة","Joke"), tr("أغنية","Song")};
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
-        typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        randomType.setAdapter(typeAdapter);
-        page.addView(randomType, matchHeight(54));
-        addSpace(page, 12);
-        randomName = input(tr("اسمك أو اسم أي شخص (اختياري)","Your name or anyone's name (optional)"));
-        page.addView(randomName, matchHeight(54));
-        addSpace(page, 14);
-        Button make = button(tr("✧  توليد برومبت عشوائي","✧  Generate random prompt"), true);
-        page.addView(make, matchHeight(58));
-        randomOutput = text("", 15, WHITE, false);
-        randomOutput.setTextIsSelectable(true);
-        randomOutput.setPadding(dp(14), dp(14), dp(14), dp(14));
-        randomOutput.setBackground(panelBackground());
-        page.addView(randomOutput, matchWrap());
-        addSpace(page, 10);
-        Button copy = button(tr("نسخ","Copy"), false);
-        page.addView(copy, matchHeight(48));
-        make.setOnClickListener(v -> randomOutput.setText(randomPromptText(randomType.getSelectedItemPosition(), randomName.getText().toString().trim())));
-        copy.setOnClickListener(v -> {
-            String result = randomOutput.getText().toString().trim();
-            if (result.isEmpty()) return;
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("PromptForge random prompt", result));
-            toast(tr("تم النسخ","Copied"));
+    private void result(){
+        setScreen("result");
+        LinearLayout r=column();
+        titleBar(r,"النتيجة","Result");
+        addGap(r,10);
+
+        LinearLayout meta=new LinearLayout(this);
+        meta.setGravity(Gravity.CENTER_VERTICAL);
+        meta.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        PlatformIconView pi=new PlatformIconView(this,sel);
+        meta.addView(pi,new LinearLayout.LayoutParams(dp(34),dp(34)));
+        TextView tool=text(sel,14,WHITE,true);
+        tool.setGravity(Gravity.CENTER);
+        meta.addView(tool,new LinearLayout.LayoutParams(0,dp(42),1));
+        TextView taskP=pill(taskName());
+        meta.addView(taskP,new LinearLayout.LayoutParams(-2,dp(34)));
+        r.addView(meta,new LinearLayout.LayoutParams(-1,dp(42)));
+
+        addGap(r,10);
+        TextView out=text(last,15,WHITE,false);
+        out.setTextIsSelectable(true);
+        out.setGravity(ar()?Gravity.RIGHT|Gravity.TOP:Gravity.LEFT|Gravity.TOP);
+        out.setPadding(dp(16),dp(16),dp(16),dp(16));
+        out.setBackground(rounded(PANEL,BORDER2,25));
+        r.addView(out,new LinearLayout.LayoutParams(-1,dp(420)));
+
+        addGap(r,12);
+        TextView copy=button(tr("نسخ البرومبت","Copy prompt"),true);
+        copy.setOnClickListener(v->copy(last));
+        r.addView(copy,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,8);
+
+        LinearLayout acts=new LinearLayout(this);
+        acts.setGravity(Gravity.CENTER);
+        acts.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        TextView save=button(tr("★  حفظ","★  Save"),false);
+        save.setOnClickListener(v->{s.add("saved",last);toast(tr("تم حفظ البرومبت","Prompt saved"));});
+        TextView share=button(tr("مشاركة","Share"),false);
+        share.setOnClickListener(v->{
+            Intent i=new Intent(Intent.ACTION_SEND);
+            i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,last);
+            startActivity(Intent.createChooser(i,tr("مشاركة البرومبت","Share prompt")));
         });
-        showRoot();
+        acts.addView(save,new LinearLayout.LayoutParams(0,dp(56),1));
+        Space g=new Space(this);acts.addView(g,new LinearLayout.LayoutParams(dp(8),1));
+        acts.addView(share,new LinearLayout.LayoutParams(0,dp(56),1));
+        r.addView(acts,new LinearLayout.LayoutParams(-1,dp(56)));
+
+        addGap(r,12);
+        TextView again=button(tr("إنشاء برومبت جديد","Create another prompt"),false);
+        again.setOnClickListener(v->create());
+        r.addView(again,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        showRoot(scroll(r));
     }
 
-    private String randomPromptText(int type, String name) {
-        String who = name.isEmpty() ? "a fictional character" : name;
-        String[] prompts;
-        if (type == 0) {
-            prompts = new String[]{
-                "Create a cinematic, photorealistic portrait of " + who + " in a rain-soaked city at midnight. Use dramatic rim lighting, rich reflections, realistic skin and fabric textures, a carefully composed frame, and a mysterious atmosphere.",
-                "Create an imaginative editorial image featuring " + who + " in a surreal world where floating theater stages drift among the clouds. Use refined composition, atmospheric depth, elegant color contrast, and high visual detail.",
-                "Create a striking fantasy image of " + who + " standing before an ancient monumental doorway in a forgotten desert city at golden hour. Emphasize scale, tactile materials, cinematic light, and a sense of discovery."
-            };
-        } else if (type == 1) {
-            prompts = new String[]{
-                "Write an original English poem dedicated to " + who + " about hope surviving in a broken world. Use vivid imagery, musical language, a clear emotional arc, and an ending that feels earned rather than sentimental.",
-                "Write a lyrical free-verse poem about " + who + " standing alone in an abandoned theater after the final curtain. Explore memory, silence, and the persistence of art through precise imagery and restrained emotion.",
-                "Write an original poem for " + who + " about a journey from fear to courage. Use fresh metaphors, natural rhythm, and a memorable final line. Avoid clichés."
-            };
-        } else if (type == 2) {
-            prompts = new String[]{
-                "Write a clever, friendly, original English joke featuring " + who + ". Keep it concise, easy to understand, and based on a surprising but harmless punchline.",
-                "Create a short comic dialogue in English between " + who + " and an overly dramatic robot. Build toward an unexpected punchline without insulting or humiliating anyone.",
-                "Write three short, witty English one-liners about " + who + " trying to solve an absurd everyday problem. Keep the humor playful and suitable for a general audience."
-            };
-        } else {
-            prompts = new String[]{
-                "Write original English song lyrics dedicated to " + who + " in an uplifting cinematic pop style. Include a memorable chorus, two concise verses, a bridge, and a hopeful final chorus. Do not imitate any existing artist.",
-                "Create an original English acoustic ballad for " + who + " about friendship across distance. Use intimate imagery, a singable chorus, natural phrasing, and a gentle emotional build. Avoid clichés.",
-                "Write an original theatrical anthem for " + who + " about finding light after darkness. Include verses, a powerful chorus, and a final refrain suitable for a live stage performance. Do not imitate copyrighted lyrics."
-            };
-        }
-        return prompts[new Random().nextInt(prompts.length)];
+    private void randomPrompt(){
+        setScreen("random");
+        LinearLayout r=column();
+        titleBar(r,"برومبت عشوائي","Random Prompt");
+        addGap(r,12);
+        TextView intro=text(tr("اختر نوع البرومبت واكتب اسمك أو اسم أي شخص.","Choose a prompt type and enter your name or anyone else's."),14,MUTED,false);
+        r.addView(intro,new LinearLayout.LayoutParams(-1,dp(52)));
+        addGap(r,10);
+
+        Spinner typePicker=new Spinner(this);
+        String[] types={tr("صورة","Image"),tr("قصيدة","Poem"),tr("نكتة","Joke"),tr("أغنية","Song")};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,types);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        typePicker.setAdapter(adapter);
+        r.addView(typePicker,new LinearLayout.LayoutParams(-1,dp(54)));
+        addGap(r,10);
+
+        EditText person=editor("الاسم","Name",1);
+        person.setSingleLine(true);
+        r.addView(person,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(r,14);
+
+        TextView go=button(tr("أنشئ برومبت عشوائي","Generate Random Prompt"),true);
+        go.setOnClickListener(v->{
+            String name=person.getText().toString().trim();
+            if(name.isEmpty()){toast(tr("اكتب اسماً أولاً","Enter a name first"));return;}
+            int index=typePicker.getSelectedItemPosition();
+            String kind=index==0?"Image prompt":index==1?"Poem":index==2?"Joke":"Song";
+            String idea="Create an original, polished English "+kind+" personalized for the person named \""+name+"\". Make it creative, specific, and ready to use. Return only the finished result.";
+            sel=index==0?"Midjourney":"ChatGPT";
+            task=kind;
+            go.setEnabled(false);
+            new RemotePromptClient().generate(BASE_URL,idea,sel,task,"English",s.accountToken(),(ok,val)->runOnUiThread(()->{
+                go.setEnabled(true);
+                if(!ok){toast(tr("تعذر إنشاء البرومبت. تحقق من الاتصال.","Could not generate the prompt. Check the connection."));return;}
+                last=val;
+                s.add("history",last);
+                result();
+            }));
+        });
+        r.addView(go,new LinearLayout.LayoutParams(-1,dp(60)));
+        showRoot(scroll(r));
     }
 
-    private void showHistory() {
-        push("history");
-        screen = "history";
-        root = newRoot();
-        LinearLayout page = column(18);
-        root.addView(page, matchWrap());
-        addHeader(page, tr("سجل البرومبتات","Prompt history"));
-        List<String> history = storage.list("history");
-        if (history.isEmpty()) {
-            TextView empty = text(tr("لا يوجد سجل بعد. أنشئ أول برومبت ليظهر هنا.","No history yet. Create your first prompt to see it here."), 14, MUTED, false);
-            page.addView(empty, matchWrap());
-        } else {
-            for (int i = 0; i < history.size(); i++) {
-                final String item = history.get(i);
-                LinearLayout card = column(14);
-                card.setBackground(panelBackground());
-                TextView body = text(item, 14, WHITE, false);
-                body.setMaxLines(7);
-                card.addView(body, matchWrap());
-                Button copy = button(tr("نسخ","Copy"), false);
-                card.addView(copy, matchHeight(44));
-                copy.setOnClickListener(v -> {
-                    android.content.ClipboardManager clipboard = (android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("PromptForge prompt", item));
-                    toast(tr("تم النسخ","Copied"));
-                });
-                page.addView(card, matchWrap());
-                addSpace(page, 10);
+    private void improve(){
+        setScreen("improve");
+        LinearLayout r=column();
+        titleBar(r,"تحسين برومبت","Improve Prompt");
+        addGap(r,10);
+
+        FrameLayout tip=panel(22);
+        PFIconView ic=new PFIconView(this,"spark",PURPLE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(28),dp(28));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(14):0;ip.leftMargin=ar()?0:dp(14);
+        tip.addView(ic,ip);
+        TextView tx=text(tr("الصق أي برومبت لديك، وسنرتبه ونوضحه مع الحفاظ على هدفه.","Paste any prompt. We improve structure and clarity while preserving its intent."),12,MUTED,false);
+        tx.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,-1);
+        if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
+        tip.addView(tx,tp);
+        r.addView(tip,new LinearLayout.LayoutParams(-1,dp(76)));
+
+        addGap(r,12);
+        EditText input=editor("ألصق البرومبت هنا...","Paste your prompt here...",9);
+        r.addView(input,new LinearLayout.LayoutParams(-1,dp(235)));
+        addGap(r,12);
+
+        TextView b=button(tr("✦  تحسين البرومبت","✦  Improve Prompt"),true);
+        b.setOnClickListener(v->{
+            String source=input.getText().toString();
+            if(source.trim().length()<3){toast(tr("ألصق البرومبت أولاً","Paste a prompt first"));return;}
+            b.setEnabled(false);
+            new RemotePromptClient().generate(BASE_URL,
+                "Professionally improve and rewrite the following prompt in English. Preserve its original intent, remove ambiguity, add useful task-specific detail, and return only the finished prompt:\n\n" + source,
+                sel, "Writing", "English", s.accountToken(), (ok,val)->runOnUiThread(()->{
+                    b.setEnabled(true);
+                    if(!ok){toast(tr("تعذر تحسين البرومبت عبر الخادم.","Could not improve the prompt through the server."));return;}
+                    last=val;
+                    task="Writing";
+                    s.add("history",last);
+                    result();
+                }));
+        });
+        r.addView(b,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        showRoot(scroll(r));
+    }
+
+    private void platforms(){
+        setScreen("platforms");
+        LinearLayout r=column();
+        titleBar(r,"كل المنصات والأدوات","All AI Platforms");
+        addGap(r,8);
+
+        EditText q=editor("ابحث عن أداة أو فئة…","Search a tool or category…",1);
+        q.setSingleLine(true);
+        q.setGravity(ar()?Gravity.CENTER_VERTICAL|Gravity.RIGHT:Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        r.addView(q,new LinearLayout.LayoutParams(-1,dp(54)));
+        addGap(r,10);
+
+        LinearLayout list=new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+
+        Runnable fill=()->{
+            list.removeAllViews();
+            String query=q.getText().toString().trim().toLowerCase(Locale.ROOT);
+            for(Platform p:ps){
+                String n=p.name.toLowerCase(Locale.ROOT),c=p.category.toLowerCase(Locale.ROOT);
+                if(query.isEmpty()||n.contains(query)||c.contains(query)){
+                    FrameLayout item=platformListRow(p);
+                    list.addView(item,new LinearLayout.LayoutParams(-1,dp(62)));
+                    addGap(list,7);
+                }
             }
-            Button clear = button(tr("مسح السجل المحلي","Clear local history"), false);
-            page.addView(clear, matchHeight(50));
-            clear.setOnClickListener(v -> new AlertDialog.Builder(this)
-                    .setTitle(tr("مسح السجل","Clear history"))
-                    .setMessage(tr("سيتم حذف سجل البرومبتات من هذا الجهاز فقط.","This removes prompt history from this device only."))
-                    .setNegativeButton(tr("إلغاء","Cancel"), null)
-                    .setPositiveButton(tr("مسح","Clear"), (d, w) -> {
-                        storage.put("history", "[]");
-                        showHistory();
-                    }).show());
-        }
-        showRoot();
-    }
-
-    private void addHeader(LinearLayout page, String title) {
-        LinearLayout header = row();
-        Button back = button("‹", false);
-        header.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        back.setOnClickListener(v -> goBack());
-        TextView heading = text(title, 23, WHITE, true);
-        heading.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        header.addView(heading, new LinearLayout.LayoutParams(0, dp(48), 1));
-        TextView languageButton = text(ar() ? "ع" : "EN", 14, ACCENT, true);
-        languageButton.setGravity(Gravity.CENTER);
-        header.addView(languageButton, new LinearLayout.LayoutParams(dp(42), dp(48)));
-        languageButton.setOnClickListener(v -> {
-            language = ar() ? "English" : "Arabic";
-            storage.lang(language);
-            renderCurrent();
+            if(list.getChildCount()==0){
+                TextView empty=text(tr("لا توجد نتائج مطابقة.","No matching tools found."),14,MUTED,false);
+                empty.setGravity(Gravity.CENTER);
+                list.addView(empty,new LinearLayout.LayoutParams(-1,dp(80)));
+            }
+        };
+        q.addTextChangedListener(new TextWatcher(){
+            public void beforeTextChanged(CharSequence a,int b,int c,int d){}
+            public void onTextChanged(CharSequence a,int b,int c,int d){fill.run();}
+            public void afterTextChanged(Editable e){}
         });
-        page.addView(header);
-        addSpace(page, 18);
+        fill.run();
+        r.addView(list);
+        showRoot(scroll(r));
     }
 
-    private void addActionCard(LinearLayout page, String title, String subtitle, String icon, Runnable action) {
-        LinearLayout card = column(16);
-        card.setBackground(panelBackground());
-        LinearLayout line = row();
-        TextView glyph = text(icon, 26, ACCENT, true);
-        glyph.setGravity(Gravity.CENTER);
-        line.addView(glyph, new LinearLayout.LayoutParams(dp(46), dp(48)));
-        LinearLayout texts = column(2);
-        texts.addView(text(title, 17, WHITE, true), matchWrap());
-        texts.addView(text(subtitle, 13, MUTED, false), matchWrap());
-        line.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
-        card.addView(line, matchWrap());
-        page.addView(card, matchWrap());
-        card.setOnClickListener(v -> action.run());
-        addSpace(page, 10);
+    private FrameLayout platformListRow(Platform p){
+        FrameLayout box=panel(20);
+        box.setClickable(true);box.setFocusable(true);
+        box.setOnClickListener(v->platformChoice(p));
+
+        PlatformIconView ic=new PlatformIconView(this,p.name);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(40),dp(40));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.rightMargin=ar()?dp(12):0;ip.leftMargin=ar()?0:dp(12);
+        box.addView(ic,ip);
+
+        TextView name=text(p.name,14,WHITE,true);
+        name.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-1,dp(26));
+        np.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())np.rightMargin=dp(62);else np.leftMargin=dp(62);
+        box.addView(name,np);
+
+        TextView cat=text(p.category,10,MUTED2,false);
+        cat.setGravity(ar()?Gravity.RIGHT|Gravity.CENTER_VERTICAL:Gravity.LEFT|Gravity.CENTER_VERTICAL);
+        FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,dp(22));
+        cp.gravity=Gravity.BOTTOM;
+        cp.bottomMargin=dp(8);
+        if(ar())cp.rightMargin=dp(62);else cp.leftMargin=dp(62);
+        box.addView(cat,cp);
+
+        PFIconView arrow=new PFIconView(this,ar()?"arrowLeft":"arrowRight",MUTED);
+        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(20),dp(20));
+        ap.gravity=(ar()?Gravity.LEFT:Gravity.RIGHT)|Gravity.CENTER_VERTICAL;
+        ap.rightMargin=ar()?0:dp(12);ap.leftMargin=ar()?dp(12):0;
+        box.addView(arrow,ap);
+        return box;
     }
 
-    private void openAdmin() {
-        if (token == null || token.isEmpty()) {
-            toast(tr("جلسة الأدمن غير صالحة. سجّل الدخول مجدداً.","Admin session is invalid. Sign in again."));
-            showLogin();
-            return;
+    private void platformChoice(Platform p){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+
+        LinearLayout head=new LinearLayout(this);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        head.setLayoutDirection(ar()?View.LAYOUT_DIRECTION_RTL:View.LAYOUT_DIRECTION_LTR);
+        PlatformIconView ic=new PlatformIconView(this,p.name);
+        head.addView(ic,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.addView(text(p.name,18,WHITE,true),new LinearLayout.LayoutParams(-1,dp(28)));
+        tx.addView(text(p.category,11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(22)));
+        head.addView(tx,new LinearLayout.LayoutParams(0,dp(48),1));
+        box.addView(head,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        addGap(box,14);
+        TextView select=button(tr("استخدام هذه الأداة","Use this tool"),true);
+        select.setOnClickListener(v->{sel=p.name;d.dismiss();create();});
+        box.addView(select,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(box,8);
+
+        TextView open=button(tr("فتح الموقع","Open website"),false);
+        open.setOnClickListener(v->open(p.url));
+        box.addView(open,new LinearLayout.LayoutParams(-1,dp(52)));
+        addGap(box,8);
+
+        TextView cancel=button(tr("إلغاء","Cancel"),false);
+        cancel.setOnClickListener(v->d.dismiss());
+        box.addView(cancel,new LinearLayout.LayoutParams(-1,dp(52)));
+
+        d.setContentView(box);
+        sizeDialog(d,0.88f);d.show();sizeDialog(d,0.88f);
+    }
+
+    private Platform find(String name){
+        for(Platform p:ps)if(p.name.equals(name))return p;
+        return ps.get(0);
+    }
+
+    private void listScreen(String kind){
+        setScreen("list");
+        LinearLayout r=column();
+        boolean saved="saved".equals(kind);
+        titleBar(r,saved?"المحفوظات":"المحادثات",saved?"Saved":"Recent prompts");
+        addGap(r,8);
+
+        List<String> items=s.list(kind);
+        if(items.isEmpty()){
+            r.addView(emptyState(),new LinearLayout.LayoutParams(-1,dp(92)));
+        }else{
+            for(int i=0;i<items.size();i++){
+                final String value=items.get(i);
+                FrameLayout box=recentRow(value,i);
+                box.setOnClickListener(v->{last=value;result();});
+                r.addView(box,new LinearLayout.LayoutParams(-1,dp(82)));
+                addGap(r,8);
+                if(i>=49)break;
+            }
         }
-        Intent intent = new Intent(this, AdminActivity.class);
-        intent.putExtra("admin_token", token);
-        startActivity(intent);
+        showRoot(scroll(r));
     }
 
-    private void push(String next) { if (screen != null && !screen.equals(next)) backStack.add(screen); }
-    private void goBack() {
-        if (backStack.isEmpty()) { showHome(); return; }
-        String previous = backStack.remove(backStack.size() - 1);
-        if ("home".equals(previous)) showHome();
-        else if ("generate".equals(previous)) showGenerateWithoutPush();
-        else if ("random".equals(previous)) showRandomWithoutPush();
-        else if ("history".equals(previous)) showHistoryWithoutPush();
-        else showHome();
-    }
-    private void renderCurrent() {
-        if ("login".equals(screen)) showLogin();
-        else if ("generate".equals(screen)) showGenerateWithoutPush();
-        else if ("random".equals(screen)) showRandomWithoutPush();
-        else if ("history".equals(screen)) showHistoryWithoutPush();
-        else showHome();
-    }
-    private void showGenerateWithoutPush() { if (!backStack.isEmpty()) backStack.remove(backStack.size()-1); showGenerate(); }
-    private void showRandomWithoutPush() { if (!backStack.isEmpty()) backStack.remove(backStack.size()-1); showRandom(); }
-    private void showHistoryWithoutPush() { if (!backStack.isEmpty()) backStack.remove(backStack.size()-1); showHistory(); }
+    private void account(){
+        setScreen("account");
+        LinearLayout r=column();
+        titleBar(r,"الحساب","Account");
+        addGap(r,10);
 
-    @Override public void onBackPressed() {
-        if ("login".equals(screen)) super.onBackPressed();
-        else goBack();
+        if(!s.accountUser().isEmpty()){
+            FrameLayout profile=panel(26);
+            PFIconView user=new PFIconView(this,"user",WHITE);
+            FrameLayout avatar=new FrameLayout(this);
+            avatar.setBackground(gradient(30));
+            avatar.addView(user,new FrameLayout.LayoutParams(dp(32),dp(32),Gravity.CENTER));
+            FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(58),dp(58));
+            ap.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+            ap.rightMargin=ar()?dp(16):0;ap.leftMargin=ar()?0:dp(16);
+            profile.addView(avatar,ap);
+
+            TextView name=text(s.accountUser(),17,WHITE,true);
+            FrameLayout.LayoutParams np=new FrameLayout.LayoutParams(-1,dp(30));
+            np.gravity=Gravity.TOP;
+            np.topMargin=dp(13);
+            if(ar())np.rightMargin=dp(88);else np.leftMargin=dp(88);
+            profile.addView(name,np);
+
+            TextView status=text(tr("حساب فعّال","Active account"),11,SUCCESS,true);
+            FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-1,dp(24));
+            sp.gravity=Gravity.BOTTOM;
+            sp.bottomMargin=dp(12);
+            if(ar())sp.rightMargin=dp(88);else sp.leftMargin=dp(88);
+            profile.addView(status,sp);
+            r.addView(profile,new LinearLayout.LayoutParams(-1,dp(88)));
+
+            addGap(r,12);
+            TextView change=button(tr("تغيير كلمة المرور","Change password"),true);
+            change.setOnClickListener(v->changePassword(change));
+            r.addView(change,new LinearLayout.LayoutParams(-1,dp(58)));
+            addGap(r,8);
+
+            TextView out=button(tr("تسجيل الخروج","Log out"),false);
+            out.setOnClickListener(v->logoutConfirm());
+            r.addView(out,new LinearLayout.LayoutParams(-1,dp(58)));
+            showRoot(scroll(r));return;
+        }
+
+        TextView note=text(tr("سجّل الدخول إلى حسابك للوصول إلى مساحة العمل.","Sign in to access your workspace."),15,MUTED,false);
+        note.setGravity(Gravity.CENTER);
+        r.addView(note,new LinearLayout.LayoutParams(-1,dp(80)));
+        TextView login=button(tr("تسجيل الدخول","Sign in"),true);
+        login.setOnClickListener(v->loginScreen());
+        r.addView(login,new LinearLayout.LayoutParams(-1,dp(58)));
+        showRoot(scroll(r));
     }
 
-    private LinearLayout newRoot() {
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(BG);
-        LinearLayout container = column(0);
-        container.setPadding(dp(18), dp(10), dp(18), dp(26));
-        scroll.addView(container, new ScrollView.LayoutParams(-1, -2));
-        root = container;
-        setContentView(scroll);
-        return container;
+    private void changePassword(TextView source){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+        TextView title=text(tr("تغيير كلمة المرور","Change password"),19,WHITE,true);title.setGravity(Gravity.CENTER);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(40)));addGap(box,8);
+        EditText pass=editor("كلمة المرور الجديدة (8 أحرف على الأقل)","New password (8+ characters)",1);
+        pass.setSingleLine(true);pass.setInputType(0x00000081);
+        box.addView(pass,new LinearLayout.LayoutParams(-1,dp(56)));addGap(box,10);
+
+        TextView save=button(tr("حفظ التغيير","Save change"),true);
+        save.setOnClickListener(v->{
+            String p=pass.getText().toString();
+            if(p.length()<8){toast(tr("كلمة المرور يجب أن تكون 8 أحرف على الأقل","Password must be at least 8 characters"));return;}
+            save.setEnabled(false);
+            new RemotePromptClient().updatePassword(BASE_URL,s.accountToken(),p,(ok,val)->runOnUiThread(()->{
+                save.setEnabled(true);
+                if(!ok){toast(tr("تعذر تعديل كلمة المرور","Could not update password"));return;}
+                try{
+                    org.json.JSONObject j=new org.json.JSONObject(val);
+                    s.account(j.optString("username",s.accountUser()),j.optString("token",s.accountToken()),s.isAdmin());
+                }catch(Exception ignored){}
+                d.dismiss();toast(tr("تم تعديل كلمة المرور","Password updated"));
+            }));
+        });
+        box.addView(save,new LinearLayout.LayoutParams(-1,dp(56)));addGap(box,8);
+        TextView cancel=button(tr("إلغاء","Cancel"),false);cancel.setOnClickListener(v->d.dismiss());
+        box.addView(cancel,new LinearLayout.LayoutParams(-1,dp(52)));
+        d.setContentView(box);sizeDialog(d,0.90f);d.show();sizeDialog(d,0.90f);
     }
-    private void showRoot() { if (root != null) root.setLayoutDirection(ar() ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR); }
-    private LinearLayout column(int pad) {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        l.setPadding(dp(pad), dp(pad), dp(pad), dp(pad));
-        return l;
+
+    private void logoutConfirm(){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        LinearLayout holder=new LinearLayout(this);holder.setGravity(Gravity.CENTER);holder.addView(logo,new LinearLayout.LayoutParams(dp(54),dp(54)));
+        box.addView(holder,new LinearLayout.LayoutParams(-1,dp(54)));addGap(box,10);
+        TextView title=text(tr("تسجيل الخروج","Log out"),19,WHITE,true);title.setGravity(Gravity.CENTER);box.addView(title,new LinearLayout.LayoutParams(-1,dp(36)));
+        TextView msg=text(tr("هل تريد تسجيل الخروج من الحساب؟","Do you want to sign out?"),13,MUTED,false);msg.setGravity(Gravity.CENTER);box.addView(msg,new LinearLayout.LayoutParams(-1,dp(40)));
+        addGap(box,8);
+        LinearLayout acts=new LinearLayout(this);acts.setOrientation(LinearLayout.HORIZONTAL);acts.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        TextView no=button(tr("إلغاء","Cancel"),false);no.setOnClickListener(v->d.dismiss());
+        TextView yes=button(tr("خروج","Log out"),true);yes.setOnClickListener(v->{d.dismiss();s.logout();loginScreen();});
+        acts.addView(no,new LinearLayout.LayoutParams(0,dp(54),1));Space g=new Space(this);acts.addView(g,new LinearLayout.LayoutParams(dp(8),1));acts.addView(yes,new LinearLayout.LayoutParams(0,dp(54),1));
+        box.addView(acts,new LinearLayout.LayoutParams(-1,dp(54)));
+        d.setContentView(box);sizeDialog(d,0.88f);d.show();sizeDialog(d,0.88f);
     }
-    private LinearLayout row() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.HORIZONTAL);
-        l.setGravity(Gravity.CENTER_VERTICAL);
-        return l;
+
+    private void settings(){
+        setScreen("settings");
+        LinearLayout r=column();
+        titleBar(r,"الإعدادات","Settings");
+        addGap(r,8);
+
+        if(s.isAdmin()){
+            TextView admin=button(tr("🛡  لوحة تحكم الأدمن","🛡  Admin Control Panel"),true);
+            admin.setOnClickListener(v->{
+                Intent i=new Intent(this,AdminActivity.class);
+                i.putExtra("admin_token",s.accountToken());
+                startActivity(i);
+            });
+            r.addView(admin,new LinearLayout.LayoutParams(-1,dp(58)));
+            addGap(r,10);
+        }
+
+        TextView langBtn=button(tr("لغة التطبيق: العربية","App language: English"),false);
+        langBtn.setOnClickListener(v->languageDialog());
+        r.addView(langBtn,new LinearLayout.LayoutParams(-1,dp(56)));
+        addGap(r,12);
+
+        FrameLayout appCard=panel(25);
+        PFIconView icon=new PFIconView(this,"spark",BLUE);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(34),dp(34));
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.TOP;
+        ip.topMargin=dp(16);
+        ip.rightMargin=ar()?dp(16):0;
+        ip.leftMargin=ar()?0:dp(16);
+        appCard.addView(icon,ip);
+
+        TextView h=text(tr("PromptForge AI","PromptForge AI"),16,WHITE,true);
+        TextView d=text(tr(
+            "هندسة برومبتات مخصصة لأدوات الذكاء الاصطناعي المختلفة، مع الحفاظ على هدفك وصياغة مخرجات جاهزة للاستخدام.",
+            "Purpose-built prompt engineering for different AI tools, preserving your intent and shaping ready-to-use outputs."
+        ),11,MUTED,false);
+        TextView count=text(tr(ps.size()+" أداة ومنصة متاحة",""+ps.size()+" tools and platforms available"),10,MUTED2,false);
+
+        LinearLayout tx=new LinearLayout(this);
+        tx.setOrientation(LinearLayout.VERTICAL);
+        tx.setGravity(Gravity.CENTER_VERTICAL);
+        tx.addView(h,new LinearLayout.LayoutParams(-1,dp(25)));
+        tx.addView(d,new LinearLayout.LayoutParams(-1,dp(48)));
+        tx.addView(count,new LinearLayout.LayoutParams(-1,dp(20)));
+
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(96));
+        tp.gravity=Gravity.CENTER_VERTICAL;
+        if(ar())tp.rightMargin=dp(64);else tp.leftMargin=dp(64);
+        appCard.addView(tx,tp);
+
+        r.addView(appCard,new LinearLayout.LayoutParams(-1,dp(126)));
+        addGap(r,12);
+
+        TextView accountBtn=button(tr("الحساب","Account"),false);
+        accountBtn.setOnClickListener(v->account());
+        r.addView(accountBtn,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        showRoot(scroll(r));
     }
-    private TextView text(String value, float size, int color, boolean bold) {
-        TextView t = new TextView(this);
-        t.setText(value);
-        t.setTextSize(size);
-        t.setTextColor(color);
-        t.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
-        t.setGravity(ar() ? Gravity.RIGHT : Gravity.LEFT);
-        return t;
+
+    private void confirmExit(){
+        final Dialog d=designDialog();
+        LinearLayout box=dialogBox();
+        PromptForgeLogoView logo=new PromptForgeLogoView(this);
+        LinearLayout holder=new LinearLayout(this);holder.setGravity(Gravity.CENTER);
+        holder.addView(logo,new LinearLayout.LayoutParams(dp(58),dp(58)));
+        box.addView(holder,new LinearLayout.LayoutParams(-1,dp(58)));
+        addGap(box,10);
+
+        TextView title=text(tr("مغادرة التطبيق","Exit app"),21,WHITE,true);
+        title.setGravity(Gravity.CENTER);
+        box.addView(title,new LinearLayout.LayoutParams(-1,dp(38)));
+
+        TextView msg=text(tr("هل تريد مغادرة التطبيق؟","Do you want to exit the app?"),14,MUTED,false);
+        msg.setGravity(Gravity.CENTER);
+        box.addView(msg,new LinearLayout.LayoutParams(-1,dp(38)));
+        addGap(box,8);
+
+        LinearLayout acts=new LinearLayout(this);
+        acts.setOrientation(LinearLayout.HORIZONTAL);
+        acts.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        TextView no=button(tr("لا","No"),false);
+        no.setOnClickListener(v->d.dismiss());
+        TextView yes=button(tr("نعم","Yes"),true);
+        yes.setOnClickListener(v->{d.dismiss();finishAffinity();});
+        acts.addView(no,new LinearLayout.LayoutParams(0,dp(54),1));
+        Space g=new Space(this);acts.addView(g,new LinearLayout.LayoutParams(dp(8),1));
+        acts.addView(yes,new LinearLayout.LayoutParams(0,dp(54),1));
+        box.addView(acts,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        d.setContentView(box);sizeDialog(d,0.88f);d.show();sizeDialog(d,0.88f);
     }
-    private EditText input(String hint) {
-        EditText e = new EditText(this);
-        e.setHint(hint);
-        e.setTextColor(WHITE);
-        e.setHintTextColor(MUTED);
-        e.setTextSize(15);
-        e.setSingleLine(true);
-        e.setPadding(dp(14), dp(8), dp(14), dp(8));
-        e.setBackground(panelBackground());
-        e.setGravity((ar() ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
-        return e;
+
+
+    private void setScreen(String screen){currentScreen=screen;}
+
+    private void open(String url){
+        try{startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));}
+        catch(Exception e){toast(tr("تعذر فتح الرابط","Cannot open URL"));}
     }
-    private Button button(String label, boolean primary) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setTextSize(15);
-        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        b.setTextColor(WHITE);
-        b.setAllCaps(false);
-        b.setBackground(roundBackground(primary ? ACCENT : PANEL, BORDER, 16));
-        return b;
+
+    private void copy(String value){
+        android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(ClipData.newPlainText("PromptForge",value));
+        toast(tr("تم النسخ","Copied"));
     }
-    private GradientDrawable panelBackground() { return roundBackground(PANEL, BORDER, 16); }
-    private GradientDrawable roundBackground(int color, int stroke, int radius) {
-        GradientDrawable d = new GradientDrawable();
-        d.setColor(color);
+
+    private void toast(String value){Toast.makeText(this,value,Toast.LENGTH_SHORT).show();}
+
+    private class AmbientBackgroundView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        AmbientBackgroundView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){
+            super.onDraw(c);
+            float w=getWidth(),h=getHeight();
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(new LinearGradient(0,0,w,h,BG,Color.rgb(5,12,29),Shader.TileMode.CLAMP));
+            c.drawRect(0,0,w,h,p);
+            p.setShader(new RadialGradient(w*0.84f,h*0.18f,dp(250),new int[]{Color.argb(70,24,150,255),Color.argb(0,24,150,255)},new float[]{0f,1f},Shader.TileMode.CLAMP));
+            c.drawCircle(w*0.84f,h*0.18f,dp(250),p);
+            p.setShader(new RadialGradient(w*0.08f,h*0.82f,dp(260),new int[]{Color.argb(48,122,67,255),Color.argb(0,122,67,255)},new float[]{0f,1f},Shader.TileMode.CLAMP));
+            c.drawCircle(w*0.08f,h*0.82f,dp(260),p);
+            p.setShader(null);
+            p.setColor(Color.argb(34,110,160,255));
+            for(int i=0;i<65;i++){
+                float x=(float)((i*97)%Math.max(1,(int)w))+((i%3)*9);
+                float y=(float)((i*151)%Math.max(1,(int)h));
+                float rr=(i%7==0)?dp(1.4f):dp(0.7f);
+                c.drawCircle(x,y,rr,p);
+            }
+        }
+    }
+
+    private GradientDrawable gradientPanel(int radius){
+        GradientDrawable d=new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            new int[]{Color.rgb(18,34,68),Color.rgb(12,20,45),Color.rgb(29,18,65)});
         d.setCornerRadius(dp(radius));
-        d.setStroke(dp(1), stroke);
+        d.setStroke(dp(1),Color.rgb(42,67,112));
         return d;
     }
-    private LinearLayout.LayoutParams matchHeight(int height) { return new LinearLayout.LayoutParams(-1, dp(height)); }
-    private LinearLayout.LayoutParams matchWrap() { return new LinearLayout.LayoutParams(-1, -2); }
-    private void addSpace(LinearLayout parent, int height) {
-        View v = new View(this);
-        parent.addView(v, new LinearLayout.LayoutParams(1, dp(height)));
-    }
-    private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
-    private void toast(String value) { Toast.makeText(this, value, Toast.LENGTH_LONG).show(); }
 
-    private interface SelectionCallback { void selected(int position); }
-    private final class SimpleSelection implements android.widget.AdapterView.OnItemSelectedListener {
-        private final SelectionCallback callback;
-        private boolean first = true;
-        SimpleSelection(SelectionCallback callback) { this.callback = callback; }
-        @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-            if (first) { first = false; return; }
-            callback.selected(position);
+    private class GradientLine extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        GradientLine(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){
+            p.setShader(new LinearGradient(0,0,getWidth(),0,BLUE,PURPLE,Shader.TileMode.CLAMP));
+            c.drawRoundRect(0,0,getWidth(),getHeight(),dp(5),dp(5),p);
+            p.setShader(null);
         }
-        @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+    }
+
+    private class PromptForgeLogoView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path leftBrain=new Path();
+        private final Path rightBrain=new Path();
+        PromptForgeLogoView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+
+        @Override protected void onDraw(Canvas c){
+            super.onDraw(c);
+
+            float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f;
+            float size=Math.min(w,h)*0.80f;
+            RectF outer=new RectF(cx-size/2f,cy-size/2f,cx+size/2f,cy+size/2f);
+
+            // 3D / glass chassis: luminous edge + dark recessed face.
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(new LinearGradient(
+                outer.left,outer.top,outer.right,outer.bottom,
+                new int[]{CYAN,VIOLET,PURPLE},
+                null,Shader.TileMode.CLAMP));
+            p.setShadowLayer(dp(16),0,dp(4),Color.argb(100,30,150,255));
+            c.drawRoundRect(outer,dp(25),dp(25),p);
+            p.clearShadowLayer();
+            p.setShader(null);
+
+            RectF face=new RectF(outer.left+dp(4),outer.top+dp(4),outer.right-dp(4),outer.bottom-dp(4));
+            p.setColor(Color.rgb(5,12,28));
+            c.drawRoundRect(face,dp(21),dp(21),p);
+
+            // Beveled rim: bright upper-left, deep lower-right.
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(1.4f));
+            p.setColor(Color.argb(170,130,222,255));
+            c.drawRoundRect(new RectF(face.left+dp(1),face.top+dp(1),face.right-dp(1),face.bottom-dp(1)),dp(20),dp(20),p);
+            p.setColor(Color.argb(120,60,34,130));
+            c.drawRoundRect(new RectF(face.left+dp(2),face.top+dp(2),face.right-dp(2),face.bottom-dp(2)),dp(19),dp(19),p);
+
+            buildBrains(cx,cy);
+
+            // Soft 3D extrusion beneath both halves.
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
+            p.setStrokeWidth(dp(5.6f));
+            p.setColor(Color.argb(110,0,71,120));
+            c.save();
+            c.translate(dp(3),dp(4));
+            c.drawPath(leftBrain,p);
+            p.setColor(Color.argb(105,74,28,145));
+            c.drawPath(rightBrain,p);
+            c.restore();
+
+            // Main neon outlines with a vertical cyan→violet gradient.
+            p.setStrokeWidth(dp(3.4f));
+            p.setShader(new LinearGradient(cx-dp(40),0,cx,0,CYAN,BLUE,Shader.TileMode.CLAMP));
+            p.setColor(WHITE);
+            p.setShadowLayer(dp(7),0,0,Color.argb(120,35,180,255));
+            c.drawPath(leftBrain,p);
+            p.clearShadowLayer();
+            p.setShader(new LinearGradient(cx,0,cx+dp(40),0,PURPLE,VIOLET,Shader.TileMode.CLAMP));
+            p.setShadowLayer(dp(7),0,0,Color.argb(115,145,80,255));
+            c.drawPath(rightBrain,p);
+            p.clearShadowLayer();
+            p.setShader(null);
+
+            // Fine white/cyan highlight line = glass-like edge.
+            p.setStrokeWidth(dp(1.15f));
+            p.setColor(Color.argb(200,220,250,255));
+            c.drawPath(leftBrain,p);
+            p.setColor(Color.argb(175,245,220,255));
+            c.drawPath(rightBrain,p);
+
+            drawCircuits(c,cx,cy);
+
+            // Central spine: makes the two halves read as one coherent brain.
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(dp(2.2f));
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setColor(Color.argb(235,WHITE>>16&255,WHITE>>8&255,WHITE&255));
+            Path spine=new Path();
+            spine.moveTo(cx,cy-dp(31));
+            spine.cubicTo(cx-dp(2),cy-dp(17),cx+dp(2),cy-dp(4),cx,cy+dp(12));
+            spine.cubicTo(cx-dp(2),cy+dp(21),cx+dp(2),cy+dp(27),cx,cy+dp(31));
+            c.drawPath(spine,p);
+        }
+
+        private void buildBrains(float cx,float cy){
+            leftBrain.reset();
+            leftBrain.moveTo(cx,cy-dp(31));
+            leftBrain.cubicTo(cx-dp(12),cy-dp(45),cx-dp(28),cy-dp(43),cx-dp(35),cy-dp(32));
+            leftBrain.cubicTo(cx-dp(44),cy-dp(25),cx-dp(43),cy-dp(15),cx-dp(38),cy-dp(8));
+            leftBrain.cubicTo(cx-dp(47),cy+dp(2),cx-dp(41),cy+dp(14),cx-dp(31),cy+dp(18));
+            leftBrain.cubicTo(cx-dp(30),cy+dp(29),cx-dp(19),cy+dp(35),cx-dp(10),cy+dp(27));
+            leftBrain.cubicTo(cx-dp(5),cy+dp(36),cx-dp(2),cy+dp(33),cx,cy+dp(22));
+
+            rightBrain.reset();
+            rightBrain.moveTo(cx,cy-dp(31));
+            rightBrain.cubicTo(cx+dp(12),cy-dp(45),cx+dp(28),cy-dp(43),cx+dp(35),cy-dp(32));
+            rightBrain.cubicTo(cx+dp(44),cy-dp(25),cx+dp(43),cy-dp(15),cx+dp(38),cy-dp(8));
+            rightBrain.cubicTo(cx+dp(47),cy+dp(2),cx+dp(41),cy+dp(14),cx+dp(31),cy+dp(18));
+            rightBrain.cubicTo(cx+dp(30),cy+dp(29),cx+dp(19),cy+dp(35),cx+dp(10),cy+dp(27));
+            rightBrain.cubicTo(cx+dp(5),cy+dp(36),cx+dp(2),cy+dp(33),cx,cy+dp(22));
+        }
+
+        private void drawCircuits(Canvas c,float cx,float cy){
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
+            p.setStrokeWidth(dp(1.7f));
+
+            // Left/cyan circuits.
+            p.setColor(Color.argb(235,CYAN>>16&255,CYAN>>8&255,CYAN&255));
+            Path[] lefts=new Path[]{
+                line(cx-dp(8),cy-dp(14),cx-dp(22),cy-dp(8)),
+                line(cx-dp(7),cy+dp(1),cx-dp(24),cy+dp(10)),
+                line(cx-dp(8),cy+dp(15),cx-dp(20),cy+dp(22))
+            };
+            for(Path q:lefts)c.drawPath(q,p);
+            c.drawCircle(cx-dp(25),cy-dp(8),dp(2.6f),p);
+            c.drawCircle(cx-dp(27),cy+dp(10),dp(2.6f),p);
+            c.drawCircle(cx-dp(23),cy+dp(22),dp(2.6f),p);
+
+            // Right/violet circuits.
+            p.setColor(Color.argb(235,PURPLE>>16&255,PURPLE>>8&255,PURPLE&255));
+            Path[] rights=new Path[]{
+                line(cx+dp(8),cy-dp(14),cx+dp(22),cy-dp(22)),
+                line(cx+dp(8),cy, cx+dp(25),cy-dp(8)),
+                line(cx+dp(8),cy+dp(13),cx+dp(22),cy+dp(5))
+            };
+            for(Path q:rights)c.drawPath(q,p);
+            c.drawCircle(cx+dp(22),cy-dp(22),dp(2.6f),p);
+            c.drawCircle(cx+dp(27),cy-dp(8),dp(2.6f),p);
+            c.drawCircle(cx+dp(24),cy+dp(5),dp(2.6f),p);
+
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(220,WHITE>>16&255,WHITE>>8&255,WHITE&255));
+            c.drawCircle(cx-dp(8),cy-dp(14),dp(2.1f),p);
+            c.drawCircle(cx+dp(8),cy-dp(14),dp(2.1f),p);
+        }
+
+        private Path line(float x1,float y1,float x2,float y2){
+            Path q=new Path();
+            q.moveTo(x1,y1);
+            q.lineTo(x2,y2);
+            return q;
+        }
+    }
+
+    private class PFIconView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final String kind; private final int tint;
+        PFIconView(Context c,String kind,int tint){super(c);this.kind=kind;this.tint=tint;setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f,s=Math.min(w,h);
+            p.setColor(tint);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(dp(1.6f),s*0.075f));
+            p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);
+
+            if(kind.equals("menu")){
+                for(int i=-1;i<=1;i++)c.drawLine(cx-s*.30f,cy+i*s*.20f,cx+s*.30f,cy+i*s*.20f,p);return;
+            }
+            if(kind.equals("home")){
+                Path x=new Path();x.moveTo(cx-s*.34f,cy);x.lineTo(cx,cy-s*.30f);x.lineTo(cx+s*.34f,cy);x.moveTo(cx-s*.25f,cy-s*.02f);x.lineTo(cx-s*.25f,cy+s*.30f);x.lineTo(cx+s*.25f,cy+s*.30f);x.lineTo(cx+s*.25f,cy-s*.02f);c.drawPath(x,p);return;
+            }
+            if(kind.equals("grid")){
+                for(int i=0;i<2;i++)for(int j=0;j<2;j++)c.drawRoundRect(cx-s*.30f+j*s*.30f,cy-s*.30f+i*s*.30f,cx-s*.02f+j*s*.30f,cy-s*.02f+i*s*.30f,s*.05f,s*.05f,p);return;
+            }
+            if(kind.equals("chat")){
+                RectF r=new RectF(cx-s*.32f,cy-s*.24f,cx+s*.32f,cy+s*.20f);c.drawRoundRect(r,s*.10f,s*.10f,p);Path q=new Path();q.moveTo(cx-s*.08f,cy+s*.20f);q.lineTo(cx-s*.18f,cy+s*.35f);q.lineTo(cx-s*.18f,cy+s*.12f);c.drawPath(q,p);return;
+            }
+            if(kind.equals("user")){
+                c.drawCircle(cx,cy-s*.17f,s*.12f,p);c.drawArc(new RectF(cx-s*.27f,cy, cx+s*.27f,cy+s*.30f),200,140,false,p);return;
+            }
+            if(kind.equals("lock")){
+                RectF r=new RectF(cx-s*.23f,cy-s*.02f,cx+s*.23f,cy+s*.30f);c.drawRoundRect(r,s*.07f,s*.07f,p);c.drawArc(new RectF(cx-s*.16f,cy-s*.28f,cx+s*.16f,cy+s*.05f),180,-180,false,p);return;
+            }
+            if(kind.equals("settings")){
+                c.drawCircle(cx,cy,s*.22f,p);for(int i=0;i<8;i++){double a=i*Math.PI/4;float x1=cx+(float)Math.cos(a)*s*.25f,y1=cy+(float)Math.sin(a)*s*.25f;float x2=cx+(float)Math.cos(a)*s*.37f,y2=cy+(float)Math.sin(a)*s*.37f;c.drawLine(x1,y1,x2,y2,p);}c.drawCircle(cx,cy,s*.08f,p);return;
+            }
+            if(kind.equals("spark")||kind.equals("star")){
+                Path st=new Path();for(int i=0;i<8;i++){double a=-Math.PI/2+i*Math.PI/4;float rr=(i%2==0)?s*.35f:s*.10f;float x=cx+(float)Math.cos(a)*rr,y=cy+(float)Math.sin(a)*rr;if(i==0)st.moveTo(x,y);else st.lineTo(x,y);}st.close();p.setStyle(Paint.Style.FILL);c.drawPath(st,p);return;
+            }
+            if(kind.equals("edit")){
+                c.drawLine(cx-s*.25f,cy+s*.25f,cx+s*.25f,cy-s*.25f,p);c.drawLine(cx-s*.31f,cy+s*.31f,cx-s*.12f,cy+s*.27f,p);return;
+            }
+            if(kind.equals("arrowRight")||kind.equals("arrowLeft")){
+                boolean right=kind.equals("arrowRight");Path a=new Path();float dir=right?1:-1;a.moveTo(cx-dir*s*.13f,cy-s*.20f);a.lineTo(cx+dir*s*.18f,cy);a.lineTo(cx-dir*s*.13f,cy+s*.20f);c.drawPath(a,p);return;
+            }
+            if(kind.equals("copy")){
+                c.drawRoundRect(new RectF(cx-s*.28f,cy-s*.20f,cx+s*.08f,cy+s*.28f),s*.05f,s*.05f,p);c.drawRoundRect(new RectF(cx-s*.10f,cy-s*.30f,cx+s*.27f,cy+s*.18f),s*.05f,s*.05f,p);return;
+            }
+            if(kind.equals("share")){
+                p.setStyle(Paint.Style.FILL);c.drawCircle(cx-s*.25f,cy,s*.09f,p);c.drawCircle(cx+s*.23f,cy-s*.22f,s*.09f,p);c.drawCircle(cx+s*.23f,cy+s*.22f,s*.09f,p);p.setStyle(Paint.Style.STROKE);c.drawLine(cx-s*.17f,cy-s*.05f,cx+s*.15f,cy-s*.17f,p);c.drawLine(cx-s*.17f,cy+s*.05f,cx+s*.15f,cy+s*.17f,p);return;
+            }
+            p.setStyle(Paint.Style.FILL);c.drawCircle(cx,cy,s*.28f,p);
+        }
+    }
+
+    private class PlatformIconView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path=new Path();
+        private final String name;
+        PlatformIconView(Context c,String name){super(c);this.name=name==null?"":name;setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f,s=Math.min(w,h);
+            String x=name.toLowerCase(Locale.ROOT);
+
+            // Soft icon plate.
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(55,255,255,255));
+            c.drawCircle(cx,cy,s*.38f,p);
+
+            if(x.contains("chatgpt")){drawChatGPT(c,cx,cy,s);return;}
+            if(x.contains("claude")){drawClaude(c,cx,cy,s);return;}
+            if(x.contains("gemini")){drawGemini(c,cx,cy,s);return;}
+            if(x.contains("midjourney")){drawMidjourney(c,cx,cy,s);return;}
+            if(x.contains("perplexity")){drawPerplexity(c,cx,cy,s);return;}
+            if(x.contains("stable diffusion")){drawStable(c,cx,cy,s);return;}
+            if(x.contains("elevenlabs")){drawEleven(c,cx,cy,s);return;}
+            if(x.contains("runway")){drawRunway(c,cx,cy,s);return;}
+
+            drawGeneric(c,cx,cy,s);
+        }
+
+        private void stroke(int color,float width){
+            p.setStyle(Paint.Style.STROKE);p.setColor(color);p.setStrokeWidth(dp(width));
+            p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);
+            p.setShader(null);
+        }
+
+        private void drawChatGPT(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,2.3f);
+            for(int i=0;i<6;i++){
+                c.save();c.rotate(i*60,cx,cy);
+                RectF r=new RectF(cx-s*.23f,cy-s*.10f,cx+s*.23f,cy+s*.10f);
+                c.drawRoundRect(r,s*.10f,s*.10f,p);c.restore();
+            }
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);c.drawCircle(cx,cy,s*.065f,p);
+        }
+
+        private void drawClaude(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(240,103,55));
+            Path st=new Path();
+            for(int i=0;i<10;i++){
+                double a=-Math.PI/2+i*Math.PI/5;
+                float rr=(i%2==0)?s*.28f:s*.11f;
+                float xx=cx+(float)Math.cos(a)*rr,yy=cy+(float)Math.sin(a)*rr;
+                if(i==0)st.moveTo(xx,yy);else st.lineTo(xx,yy);
+            }st.close();c.drawPath(st,p);
+        }
+
+        private void drawGemini(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(79,126,255));
+            path.reset();
+            path.moveTo(cx,cy-s*.32f);path.lineTo(cx+s*.13f,cy-s*.13f);path.lineTo(cx+s*.31f,cy);
+            path.lineTo(cx+s*.13f,cy+s*.13f);path.lineTo(cx,cy+s*.32f);
+            path.lineTo(cx-s*.13f,cy+s*.13f);path.lineTo(cx-s*.31f,cy);
+            path.lineTo(cx-s*.13f,cy-s*.13f);path.close();c.drawPath(path,p);
+        }
+
+        private void drawMidjourney(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,1.7f);
+            path.reset();
+            path.moveTo(cx-s*.28f,cy+s*.25f);path.lineTo(cx-s*.10f,cy-s*.24f);path.lineTo(cx+s*.10f,cy+s*.25f);path.lineTo(cx+s*.27f,cy-s*.19f);
+            c.drawPath(path,p);
+            path.reset();
+            path.moveTo(cx-s*.20f,cy+s*.25f);path.lineTo(cx,cy-s*.12f);path.lineTo(cx+s*.19f,cy+s*.25f);
+            c.drawPath(path,p);
+            c.drawLine(cx-s*.31f,cy+s*.27f,cx+s*.31f,cy+s*.27f,p);
+        }
+
+        private void drawPerplexity(Canvas c,float cx,float cy,float s){
+            stroke(Color.rgb(0,218,225),1.8f);
+            for(int i=0;i<6;i++){
+                double a=i*Math.PI/3;
+                float x1=cx+(float)Math.cos(a)*s*.07f,y1=cy+(float)Math.sin(a)*s*.07f;
+                float x2=cx+(float)Math.cos(a)*s*.29f,y2=cy+(float)Math.sin(a)*s*.29f;
+                c.drawLine(x1,y1,x2,y2,p);
+            }
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(0,218,225));
+            c.drawCircle(cx,cy,s*.07f,p);
+        }
+
+        private void drawStable(Canvas c,float cx,float cy,float s){
+            stroke(Color.rgb(156,79,255),2.2f);
+            c.drawArc(new RectF(cx-s*.25f,cy-s*.25f,cx+s*.25f,cy+s*.25f),55,285,false,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(156,79,255));
+            c.drawCircle(cx-s*.10f,cy-s*.08f,s*.035f,p);
+            c.drawCircle(cx+s*.10f,cy+s*.08f,s*.035f,p);
+        }
+
+        private void drawEleven(Canvas c,float cx,float cy,float s){
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);c.drawCircle(cx,cy,s*.29f,p);
+            p.setColor(Color.rgb(20,28,45));c.drawRoundRect(new RectF(cx-s*.10f,cy-s*.15f,cx-s*.02f,cy+s*.15f),s*.02f,s*.02f,p);
+            c.drawRoundRect(new RectF(cx+s*.02f,cy-s*.15f,cx+s*.10f,cy+s*.15f),s*.02f,s*.02f,p);
+        }
+
+        private void drawRunway(Canvas c,float cx,float cy,float s){
+            stroke(Color.WHITE,2.2f);
+            path.reset();
+            path.moveTo(cx-s*.21f,cy+s*.26f);path.lineTo(cx-s*.21f,cy-s*.28f);path.lineTo(cx+s*.14f,cy-s*.28f);
+            path.cubicTo(cx+s*.34f,cy-s*.28f,cx+s*.34f,cy-s*.04f,cx+s*.14f,cy-s*.02f);
+            path.lineTo(cx-s*.21f,cy+s*.02f);
+            c.drawPath(path,p);
+            c.drawLine(cx-s*.02f,cy+s*.03f,cx+s*.24f,cy+s*.27f,p);
+        }
+
+        private void drawGeneric(Canvas c,float cx,float cy,float s){
+            int[] cs=genericColors(name);
+            p.setStyle(Paint.Style.FILL);p.setShader(new LinearGradient(0,0,getWidth(),getHeight(),cs[0],cs[1],Shader.TileMode.CLAMP));
+            c.drawCircle(cx,cy,s*.38f,p);p.setShader(null);
+            String ab=abbr(name);
+            p.setColor(WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(s*(ab.length()>2?.26f:.32f));
+            p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+            Paint.FontMetrics fm=p.getFontMetrics();
+            c.drawText(ab,cx,cy-(fm.ascent+fm.descent)/2,p);
+        }
+
+        private int[] genericColors(String n){
+            if(n.contains("voice"))return new int[]{Color.rgb(245,100,160),Color.rgb(120,70,255)};
+            if(n.contains("video"))return new int[]{Color.rgb(35,130,255),Color.rgb(75,75,255)};
+            if(n.contains("music"))return new int[]{Color.rgb(255,95,125),Color.rgb(130,65,255)};
+            return new int[]{BLUE,VIOLET};
+        }
+
+        private String abbr(String n){
+            String x=n.trim();
+            if(x.toLowerCase(Locale.ROOT).contains("adobe firefly"))return "F";
+            if(x.toLowerCase(Locale.ROOT).contains("leonardo"))return "L";
+            if(x.toLowerCase(Locale.ROOT).contains("freepik"))return "FP";
+            if(x.toLowerCase(Locale.ROOT).contains("google veo"))return "V";
+            if(x.toLowerCase(Locale.ROOT).contains("kling"))return "K";
+            if(x.toLowerCase(Locale.ROOT).contains("pika"))return "P";
+            if(x.toLowerCase(Locale.ROOT).contains("suno"))return "S";
+            if(x.toLowerCase(Locale.ROOT).contains("udio"))return "U";
+            String[] parts=x.split("\\s+");
+            if(parts.length>=2)return ""+Character.toUpperCase(parts[0].charAt(0))+Character.toUpperCase(parts[1].charAt(0));
+            return x.isEmpty()?"AI":""+Character.toUpperCase(x.charAt(0));
+        }
+    }
+
+    private class UKFlagView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        UKFlagView(Context c){super(c);}
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight();
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(1,33,105));c.drawRoundRect(0,0,w,h,dp(4),dp(4),p);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeCap(Paint.Cap.SQUARE);p.setStrokeWidth(Math.max(1,dp(6)));p.setColor(Color.WHITE);
+            c.drawLine(0,0,w,h,p);c.drawLine(w,0,0,h,p);
+            p.setStrokeWidth(Math.max(1,dp(2.5f)));p.setColor(Color.rgb(200,16,46));c.drawLine(0,0,w,h,p);c.drawLine(w,0,0,h,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(Color.WHITE);c.drawRect(w*.42f,0,w*.58f,h,p);c.drawRect(0,h*.35f,w,h*.65f,p);
+            p.setColor(Color.rgb(200,16,46));c.drawRect(w*.46f,0,w*.54f,h,p);c.drawRect(0,h*.43f,w,h*.57f,p);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(1));p.setColor(Color.argb(100,255,255,255));c.drawRoundRect(0,0,w,h,dp(4),dp(4),p);
+        }
+    }
+
+    private class SyrianFlagView extends View{
+        private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path star=new Path();
+        SyrianFlagView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){
+            float w=getWidth(),h=getHeight();
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.rgb(0,122,61));c.drawRect(0,0,w,h/3f,p);
+            p.setColor(Color.WHITE);c.drawRect(0,h/3f,w,2*h/3f,p);
+            p.setColor(Color.BLACK);c.drawRect(0,2*h/3f,w,h,p);
+            for(int i=0;i<3;i++)drawStar(c,w*(.25f+.25f*i),h*.5f,Math.min(w,h)*.18f);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(1));p.setColor(Color.argb(90,255,255,255));c.drawRoundRect(0,0,w,h,dp(4),dp(4),p);
+        }
+        private void drawStar(Canvas c,float cx,float cy,float r){
+            star.reset();
+            for(int i=0;i<10;i++){
+                double a=-Math.PI/2+i*Math.PI/5;float rr=(i%2==0)?r:r*.42f;float x=cx+(float)Math.cos(a)*rr,y=cy+(float)Math.sin(a)*rr;
+                if(i==0)star.moveTo(x,y);else star.lineTo(x,y);
+            }
+            star.close();p.setStyle(Paint.Style.FILL);p.setColor(Color.rgb(206,17,38));c.drawPath(star,p);
+        }
     }
 }
