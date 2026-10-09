@@ -1135,7 +1135,7 @@ public class MainActivity extends Activity {
             if(source.trim().length()<3){toast(tr("ألصق البرومبت أولاً","Paste a prompt first"));return;}
             b.setEnabled(false);
             new RemotePromptClient().generate(BASE_URL,
-                "Professionally improve and rewrite the following prompt in English. Preserve its original intent, remove ambiguity, add useful task-specific detail, and return only the finished prompt:\\n\\n" + source,
+                "Professionally improve and rewrite the following prompt in English. Preserve its original intent, remove ambiguity, add useful task-specific detail, and return only the finished prompt:\n\n" + source,
                 sel, "Writing", "English", s.accountToken(), (ok,val)->runOnUiThread(()->{
                     b.setEnabled(true);
                     if(!ok){toast(tr("تعذر تحسين البرومبت عبر الخادم.","Could not improve the prompt through the server."));return;}
