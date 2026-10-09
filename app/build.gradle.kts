@@ -14,6 +14,3 @@ android {
         getByName("release") { isMinifyEnabled=false }
     }
 }
-dependencies {
-    implementation("com.google.mlkit:translate:17.0.3")
-}
