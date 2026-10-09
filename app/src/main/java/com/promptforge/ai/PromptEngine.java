@@ -91,10 +91,9 @@ public final class PromptEngine {
     }
 
     private static String image(String x,String t,boolean ar,String g){
-        if(ar) return x+"\n\n"+
-                g+" اجعل النتيجة برومبتاً بصرياً نهائياً ومتماسكاً. رتّب العناصر حسب الموضوع والبيئة والتكوين والإضاءة والألوان والخامات والمزاج عند الحاجة. احذف التكرار والأخطاء اللغوية والتعليمات العامة عن كيفية كتابة البرومبت. لا تضف عناصر لم يطلبها المستخدم ولا تستخدم معاملات خاصة بأداة أخرى.";
-        return x+"\n\n"+
-                g+" Produce a final, coherent visual prompt. Organize details around subject, environment, composition, lighting, color, materials and mood when useful. Remove repetition, awkward phrasing and generic instructions about how to write prompts. Do not invent scene elements or use another tool's syntax.";
+        // Offline mode cannot perform true language-model rewriting. Return the translated
+        // visual brief itself rather than polluting it with compiler instructions.
+        return x==null?"":x.trim();
     }
 
     private static String video(String x,String t,boolean ar,String g){
