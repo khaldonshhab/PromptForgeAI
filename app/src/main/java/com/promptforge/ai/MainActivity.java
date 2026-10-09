@@ -407,7 +407,14 @@ public class MainActivity extends Activity {
         cp.leftMargin=dp(22);cp.rightMargin=dp(22);
         root.addView(center,cp);
         showRoot(root);
-        new Handler(Looper.getMainLooper()).postDelayed(()->{\n            // Restore the saved account after app restarts; the token is encrypted by Storage.\n            if(!s.accountUser().trim().isEmpty()&&!s.accountToken().trim().isEmpty()){\n                home();\n            }else{\n                loginScreen();\n            }\n        },1050);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            // Restore the saved session; credentials remain encrypted in Storage.
+            if (!s.accountUser().trim().isEmpty() && !s.accountToken().trim().isEmpty()) {
+                home();
+            } else {
+                loginScreen();
+            }
+        }, 250);
     }
 
     private void loginScreen(){
