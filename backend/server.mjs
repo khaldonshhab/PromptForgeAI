@@ -268,7 +268,7 @@ async function generate(x){
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
  ].join("\n");
  let prompt=await callProvider(system,user);
- if(isCompilerEcho(prompt)||/execute this as an?\\s+.+?\\s+task|task type:\\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
+ if(isCompilerEcho(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
   const retrySystem=[
    "Write the final user-facing prompt now.",
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
@@ -279,7 +279,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
+ if(isCompilerEcho(prompt))prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
