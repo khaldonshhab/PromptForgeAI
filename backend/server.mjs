@@ -326,6 +326,9 @@ async function generate(x){
    "Do not mention PromptForge, the compiler, internal context, routing fields, or knowledge-base instructions.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
    "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
+   "Selected target tool: "+String(x.platform)+". Task category: "+String(inferredTask)+". Tool profile: "+String(profile)+".",
+   "Mandatory tool-native guidance: "+native,
+   "Make the prompt distinctly native to the selected tool; do not return a generic prompt interchangeable with other tools.",
    "Tool-specific guidance: "+native
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
