@@ -33,4 +33,4 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
 # Admin-enabled build
-# Trigger fresh build for restored full UI and latest app changes
+# Build restored full UI APK
