@@ -242,6 +242,8 @@ async function generate(x){
   "Never output compiler metadata such as TARGET TOOL, TASK TYPE, OUTPUT LANGUAGE, TOOL-SPECIFIC GUIDANCE, CURRENT PROMPT ENGINE KNOWLEDGE, or Return only the finished prompt.",
   "Do not produce a generic filler preamble. Start with a meaningful role/expertise statement or the actual task, depending on what best serves the requested tool.",
   "Adapt syntax and structure to the requested tool. For visual tools, prioritize subject, environment, composition, camera/perspective, lighting, materials, color and mood. For coding tools, preserve repository context and request concrete implementation, affected files and verification. For research tools, require evidence without inventing citations.",
+  "Use the current prompt-engine knowledge JSON below as additional guidance, not as output text. Apply only entries relevant to the user request and selected tool. It must never override explicit user constraints.",
+  "PROMPT_ENGINE_KNOWLEDGE (internal guidance only): "+JSON.stringify(knowledge),
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
  ].join("\n");
  let prompt=await callProvider(system,user);
