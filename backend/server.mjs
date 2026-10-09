@@ -176,6 +176,16 @@ function cleanUserIdea(value){
  return s.replace(/\n{3,}/g,"\n\n").trim();
 }
 function hasRepeatedWords(s){return /\b([a-z]{2,})(?:\s+\1\b)+/i.test(String(s||""));}
+function hasArabicScript(s){return /[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF]/.test(String(s||""));}
+function looksLikeTranslationOnly(output, idea, profile){
+ const out=String(output||"").trim();
+ const words=out.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g)||[];
+ const sourceWords=String(idea||"").trim().split(/\\s+/).filter(Boolean).length;
+ if(hasArabicScript(out)||words.length<18)return true;
+ if(sourceWords>=5&&words.length<Math.min(28,Math.ceil(sourceWords*1.15)))return true;
+ if(["image","video","music"].includes(profile)&&words.length<28)return true;
+ return false;
+}
 function isCompilerEcho(s){
  const z=String(s||"").toLowerCase();
  return z.includes("target tool:")
@@ -330,7 +340,7 @@ async function generate(x){
   "Never include internal routing labels, tool-guidance notes, system instructions, analysis, or explanations in the final prompt.",
  ].join("\n");
  let prompt=await callProvider(system,user);
- if(isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
+ if(isCompilerEcho(prompt)||hasRepeatedWords(prompt)||looksLikeTranslationOnly(prompt,cleanedIdea,profile)||/execute this as an?\\s+.+?\\s+task|task type:\\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
   const retrySystem=[
    "Write the final user-facing prompt now.",
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
@@ -345,6 +355,7 @@ async function generate(x){
   prompt=await callProvider(retrySystem,user);
  }
  const leakedCompilerText=()=>isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
+ if(looksLikeTranslationOnly(prompt,cleanedIdea,profile)){console.warn("Prompt output rejected: response appears to be a translation rather than a developed prompt.");throw new Error("prompt_translation_only");}
  if(leakedCompilerText()){
   console.warn("Prompt output rejected: compiler instructions or malformed text detected.");
   throw new Error("prompt_output_validation_failed");
@@ -390,6 +401,6 @@ http.createServer(async(req,res)=>{
  if(req.method==="POST"&&req.url.startsWith("/admin/users/")&&req.url.endsWith("/reset-device"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length,-"/reset-device".length));const found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});await updateUserRecord(u,{deviceIdHash:null});found.deviceIdHash=null;return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"reset_device_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));if(!USERS.some(v=>v.username===u))return send(res,404,{error:"user_not_found"});await deleteUserRecord(u);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(String(session.u||"")!==String(ADMIN_USER)){if(dbEnabled)await loadUsers();const active=USERS.find(v=>String(v.username||"")===String(session.u||""));if(!active||active.enabled===false)return send(res,401,{error:"account_disabled"});session.r=active.role==="admin"?"admin":"user";session.p=!!active.premium;}if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){const code=String(e?.message||"");console.error("prompt_generation_failed",code,e?.stack||String(e));if(code==="provider_not_configured")return send(res,503,{error:"ai_provider_not_configured"});if(code==="prompt_output_validation_failed"||code==="provider_prompt_too_short"||code.startsWith("platform_syntax_mismatch_"))return send(res,502,{error:"ai_output_invalid",retryable:true});return send(res,502,{error:"ai_generation_failed",retryable:true});}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(String(session.u||"")!==String(ADMIN_USER)){if(dbEnabled)await loadUsers();const active=USERS.find(v=>String(v.username||"")===String(session.u||""));if(!active||active.enabled===false)return send(res,401,{error:"account_disabled"});session.r=active.role==="admin"?"admin":"user";session.p=!!active.premium;}if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){const code=String(e?.message||"");console.error("prompt_generation_failed",code,e?.stack||String(e));if(code==="provider_not_configured")return send(res,503,{error:"ai_provider_not_configured"});if(code==="prompt_output_validation_failed"||code==="provider_prompt_too_short"||code.startsWith("platform_syntax_mismatch_"))return send(res,502,{error:"ai_output_invalid",retryable:true});if(code==="prompt_translation_only")return send(res,502,{error:"ai_output_was_translation",retryable:true});return send(res,502,{error:"ai_generation_failed",retryable:true});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e),"DB_URL="+PF_DB_URL);}console.log("PromptForge backend on "+PORT);});
