@@ -39,8 +39,10 @@ public final class Storage{
  public void account(String u,String t,boolean admin){
   String encrypted=encrypt(t);
   SharedPreferences.Editor e=p.edit().putString("account_user",u).putBoolean("account_admin",admin);
-  e.putString("account_token",t==null?"":t);
-  if(encrypted!=null)e.putString(TOKEN_KEY,encrypted);
+  // Never persist the bearer token in plaintext. If Android Keystore encryption fails,
+  // keep the account identity but require a fresh login rather than storing a raw credential.
+  e.remove("account_token");
+  if(encrypted!=null&&!encrypted.isEmpty())e.putString(TOKEN_KEY,encrypted);
   else e.remove(TOKEN_KEY);
   e.apply();
  }
@@ -51,8 +53,7 @@ public final class Storage{
  public String accountToken(){
   String encrypted=get(TOKEN_KEY,"");
   String token=decrypt(encrypted);
-  if(token!=null&&!token.isEmpty())return token;
-  return get("account_token","");
+  return token==null?"":token;
  }
 
  public String deviceId(){return Settings.Secure.getString(context.getContentResolver(),Settings.Secure.ANDROID_ID);}
