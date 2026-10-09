@@ -43,6 +43,9 @@ public class MainActivity extends Activity {
         ps=PlatformRepository.all();
         lang=s.lang();
         if(lang.isEmpty()){lang="ar";s.lang(lang);}
+        // Wake the free backend while the user is viewing the splash/login screen.
+        // This runs in the background and never blocks the UI.
+        new RemotePromptClient().health(BASE_URL, (ok, value) -> { });
         showSplash();
     }
 
