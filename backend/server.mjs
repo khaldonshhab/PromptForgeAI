@@ -322,6 +322,7 @@ async function generate(x){
   "You are the professional prompt architect inside a prompt-generation service.",
   "Return exactly one ready-to-paste prompt for the requested tool. The result must be a complete, intelligent, structured instruction that another AI can execute reliably.",
   "Write the final prompt entirely in English, regardless of the language used in the user request. Translate the user's intent accurately when needed; preserve required names, quoted text, proper nouns, numbers, terminology and exact wording that must remain unchanged.",
+  "The user may write the idea in Arabic or any other language. Read and understand the original request directly; do not run a separate translation step, call a translator, or return a translation of the request. Use the original request as semantic input and compose a new, complete, professional English prompt for the selected tool.",
   "The generated prompt should follow a clear expert-brief structure when the task benefits from it: ROLE or EXPERTISE, OBJECTIVE/TASK, CONTEXT, REQUIRED CAPABILITIES or KNOWLEDGE, WORKING RULES/CONSTRAINTS, STEP-BY-STEP EXECUTION when useful, and OUTPUT FORMAT/ACCEPTANCE CRITERIA. Do not force irrelevant sections onto simple requests.",
   "Write prompts in the same intelligent spirit as a strong professional instruction brief: establish who the target AI should act as, what it must understand, what knowledge or tools it may need, what rules it must follow, and exactly what successful output looks like.",
   "For complex technical requests, explicitly define the relevant domain expertise, technologies, analysis methods, security/performance concerns, deliverables and verification criteria. For creative requests, define subject, intent, context, aesthetic/technical constraints and final deliverable. For research, define evidence standards, uncertainty handling and source requirements.",
@@ -347,6 +348,7 @@ async function generate(x){
    "Do not mention PromptForge, the compiler, internal context, routing fields, or knowledge-base instructions.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
    "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
+   "Understand the original request directly in its source language; do not perform a separate translation step or output a translation. Compose a complete professional English prompt for the selected tool.",
    "Selected target tool: "+String(x.platform)+". Task category: "+String(inferredTask)+". Tool profile: "+String(profile)+".",
    "Mandatory tool-native guidance: "+native,
    "Make the prompt distinctly native to the selected tool; do not return a generic prompt interchangeable with other tools.",
@@ -373,7 +375,7 @@ http.createServer(async(req,res)=>{
   res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"});
   return res.end();
 }
- if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),missingConfig:[!AI_API_URL?"AI_API_URL":null,!AI_API_KEY?"AI_API_KEY":null,!AI_MODEL?"AI_MODEL":null,!AUTH_SECRET?"PF_AUTH_SECRET":null,!ADMIN_PASSWORD_HASH?"PF_ADMIN_PASSWORD_HASH":null].filter(Boolean),database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
+ if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),missingConfig:[!AI_API_URL?"AI_API_URL":null,!AI_API_KEY?"AI_API_KEY":null,!AI_MODEL?"AI_MODEL":null,!AUTH_SECRET?"PF_AUTH_SECRET":null,!ADMIN_PASSWORD_HASH?"PF_ADMIN_PASSWORD_HASH":null].filter(Boolean),database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"none"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
    const u=String(x.username||"").trim();
