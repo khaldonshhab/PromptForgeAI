@@ -1000,7 +1000,24 @@ public class MainActivity extends Activity {
                 s.add("history",last);
                 result();
             }else{
-                toast(tr("تعذر إنشاء البرومبت من الخادم. تحقق من الاتصال وحاول مجدداً.","Could not generate the prompt from the server. Check the connection and try again."));
+                String err=val==null?"":val.trim();
+                if(err.contains("ai_provider_not_configured")||err.contains("ai_unconfigured")){
+                    toast(tr("خدمة الذكاء الاصطناعي غير مهيأة على الخادم (AI provider configuration).","AI provider is not configured on the server."));
+                }else if(err.contains("unauthorized")||err.contains("http_401")){
+                    toast(tr("انتهت صلاحية الجلسة أو يلزم تسجيل الدخول مجدداً.","Session expired or sign-in is required."));
+                }else if(err.contains("account_disabled")){
+                    toast(tr("هذا الحساب معطّل على الخادم.","This account is disabled on the server."));
+                }else if(err.contains("rate_limited")||err.contains("http_429")){
+                    toast(tr("تم تجاوز حد الطلبات مؤقتاً. حاول لاحقاً.","Request limit reached. Try again later."));
+                }else if(err.contains("ai_generation_failed")||err.contains("ai_output_invalid")||err.contains("ai_output_was_translation")){
+                    toast(tr("وصل الطلب إلى الخادم لكن فشل توليد البرومبت. رمز التشخيص: "+err,"Server received the request but prompt generation failed. Diagnostic: "+err));
+                }else if(err.startsWith("http_")){
+                    toast(tr("رفض الخادم الطلب. رمز التشخيص: "+err,"Server rejected the request. Diagnostic: "+err));
+                }else if(err.isEmpty()){
+                    toast(tr("فشل الطلب دون تفاصيل من الخادم.","Request failed without server details."));
+                }else{
+                    toast(tr("تعذر الاتصال أو قراءة الاستجابة: "+err,"Connection or response error: "+err));
+                }
             }
         }));
     }
