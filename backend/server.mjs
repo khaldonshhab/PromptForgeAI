@@ -201,14 +201,24 @@ function localPrompt(idea,platform,task){
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d?.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
+ if(!out&&Array.isArray(d?.candidates))for(const c of d.candidates)for(const p of(c?.content?.parts||[]))if(typeof p.text==="string")out+=p.text;
  return String(out||"").trim();
 }
 async function callProvider(system,user){
- let payload={model:AI_MODEL,instructions:system,input:user};
- if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
- const r=await fetch(AI_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(payload)});
+ const mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
+ let headers={"Content-Type":"application/json"};
+ let payload;
+ if(mode==="gemini"){
+  headers["x-goog-api-key"]=AI_API_KEY;
+  payload={systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:user}]}],generationConfig:{temperature:0.4}};
+ }else{
+  headers.Authorization="Bearer "+AI_API_KEY;
+  payload={model:AI_MODEL,instructions:system,input:user};
+  if(mode==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
+ }
+ const r=await fetch(AI_API_URL,{method:"POST",headers,body:JSON.stringify(payload)});
  const t=await r.text();
- if(!r.ok)throw new Error("provider_http_"+r.status);
+ if(!r.ok){console.error("AI provider request failed:",mode||"responses","HTTP",r.status,t.slice(0,500));throw new Error("provider_http_"+r.status);}
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
  const out=extractProviderText(d);
  if(!out)throw new Error("provider_no_output");
