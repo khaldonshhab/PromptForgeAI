@@ -14,8 +14,27 @@ public final class PromptEngine {
         String n=platform==null?"ChatGPT":platform.name;
         String k=platform==null?"general":platform.style;
         String t=(task==null||task.trim().isEmpty())?"General":task;
-        Spec spec=specFor(n,k);
+        Spec spec=specForTask(t,n,k);
         return render(x,n,t,false,spec);
+    }
+
+    private static Spec specForTask(String task,String platform,String fallback){
+        String t=task==null?"":task.trim().toLowerCase(java.util.Locale.ROOT);
+        if(t.equals("image prompt")||t.equals("image")||t.equals("برومبت صورة")||t.equals("صورة"))
+            return new Spec("image","Create a concise, production-ready visual prompt. Specify subject, setting, composition, viewpoint, lighting, color, materials and mood only when useful. Preserve all meaningful details, remove repetition, and never include meta-instructions or prompt-building boilerplate.");
+        if(t.equals("video prompt")||t.equals("video")||t.equals("برومبت فيديو")||t.equals("فيديو"))
+            return new Spec("video","Specify framing, camera movement, subject action, environmental motion, lighting, continuity and temporal progression. Keep motion physically coherent and omit meta-instructions.");
+        if(t.equals("voice / tts")||t.equals("voice")||t.equals("tts")||t.equals("صوت"))
+            return new Spec("voice","Specify delivery, tone, pace, rhythm, emphasis, pronunciation and pauses where relevant. Separate spoken copy from performance direction.");
+        if(t.equals("coding")||t.equals("programming")||t.equals("برمجة"))
+            return new Spec("coding","Define behavior, context, constraints, edge cases, acceptance criteria and verification. Preserve existing APIs and do not invent project details.");
+        if(t.equals("research")||t.equals("بحث"))
+            return new Spec("research","Use credible evidence, distinguish facts from inference, disclose uncertainty and never invent citations.");
+        if(t.equals("marketing")||t.equals("تسويق"))
+            return new Spec("marketing","Define audience, objective, channel, message, constraints and desired action.");
+        if(t.equals("music")||t.equals("song")||t.equals("موسيقى")||t.equals("أغنية"))
+            return new Spec("music","Specify genre, mood, tempo, instrumentation, vocal character and structure when relevant.");
+        return specFor(platform,fallback);
     }
 
     private static String render(String x,String n,String t,boolean ar,Spec s){
