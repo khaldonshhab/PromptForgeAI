@@ -14,5 +14,3 @@ android {
         getByName("release") { isMinifyEnabled=false }
     }
 }
-dependencies {
-}

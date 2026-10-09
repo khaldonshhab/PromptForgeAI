@@ -16,7 +16,7 @@ This local data is not intentionally uploaded by PromptForge AI unless the user 
 
 ## 2. Buyer accounts and authentication
 
-The app supports buyer accounts created by the service operator. A buyer account uses a username and password for authentication. The Android app stores an authentication token on the device after a successful login; it does not intentionally store the buyer password.
+The app supports buyer accounts created by the service operator. A buyer account uses a username and password for authentication. The Android app stores an authentication token on the device after a successful login. The current implementation protects the token with Android Keystore-backed encryption and does not intentionally store the buyer password.
 
 Accounts are not created by users inside the Android app. The operator provisions buyer credentials.
 
@@ -79,11 +79,10 @@ PromptForge AI هو تطبيق أندرويد لإنشاء وتحسين أوام
 
 ### الحسابات والبيانات المحفوظة على الجهاز
 
-قد يدعم التطبيق حسابات مشترين ينشئها مشغّل الخدمة. يتطلب الحساب اسم مستخدم وكلمة مرور للمصادقة. بعد تسجيل الدخول، يُحفظ رمز مصادقة على الجهاز، ولا يُفترض أن تُحفظ كلمة المرور نفسها داخل التطبيق.
+قد يدعم التطبيق حسابات مشترين ينشئها مشغّل الخدمة. يتطلب الحساب اسم مستخدم وكلمة مرور للمصادقة. بعد تسجيل الدخول، يُحفظ رمز المصادقة على الجهاز باستخدام حماية تعتمد على Android Keystore، ولا تُحفظ كلمة المرور نفسها.
 
 الحسابات لا يتم إنشاؤها من داخل التطبيق في النسخة الحالية؛ يقوم مشغّل الخدمة بإنشائها وتسليم بيانات الدخول للمشتري.
 
-قد يحفظ التطبيق محلياً
 قد يحفظ التطبيق محلياً:
 - لغة التطبيق.
 - سجل البرومبتات الناتجة.
@@ -93,6 +92,9 @@ PromptForge AI هو تطبيق أندرويد لإنشاء وتحسين أوام
 
 ### الإعلانات والمدفوعات
 لا يحتوي التطبيق على إعلانات ولا يستخدم Google Play Billing، والتطبيق مجاني للاستخدام.
+
+### الترجمة على الجهاز
+يستخدم التطبيق Google ML Kit لترجمة الفكرة العربية إلى الإنجليزية على الجهاز قبل توليد البرومبت عند الحاجة. لا تُرسل الفكرة إلى خدمة ترجمة خارجية لهذا الغرض، وقد يحتاج التطبيق إلى تنزيل نموذج اللغة عند أول استخدام.
 
 ### إرسال البرومبتات إلى الخادم
 يمكن استخدام المحرك المحلي دون إرسال البيانات خارج الجهاز. عند ضبط رابط خادم واختيار التوليد عن بُعد، يرسل التطبيق النص الذي أدخله المستخدم لهذا الطلب إلى الخادم المحدد.

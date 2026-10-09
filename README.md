@@ -37,3 +37,4 @@ Then enter the HTTPS backend URL in the app Settings. Keep all provider API keys
 Open `/admin` on the deployed backend. Configure `PF_ADMIN_USER`, `PF_ADMIN_PASSWORD_HASH`, and `PF_AUTH_SECRET`. The dashboard can create, disable, enable, reset, and delete free user accounts.
 
 Do not put provider API keys, keystores, passwords, or `.env` files in the repository.
+

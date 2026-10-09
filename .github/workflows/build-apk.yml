@@ -2,7 +2,8 @@ name: Build PromptForge APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: ['**']
+  pull_request:
 concurrency:
   group: promptforge-${{ github.workflow }}
   cancel-in-progress: true
@@ -32,3 +33,4 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
 # Admin-enabled build
+# Build restored full UI APK artifact
