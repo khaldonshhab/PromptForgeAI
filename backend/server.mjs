@@ -266,8 +266,8 @@ async function callProvider(system,user){
   // A Gemini key must be sent to Google's generateContent endpoint, not an old
   // OpenAI-compatible URL left in Render. Accept a full Gemini endpoint or a
   // Google API base URL; otherwise derive the official endpoint from AI_MODEL.
-  if(/generativelanguage\\.googleapis\\.com/i.test(endpoint)){
-   if(!/:[^/]+Content(?:\\?|$)/i.test(endpoint)) endpoint=endpoint.replace(/\\/$/,"")+"/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
+  if(/generativelanguage\.googleapis\.com/i.test(endpoint)){
+   if(!/:[^/]+Content(?:\?|$)/i.test(endpoint)) endpoint=endpoint.replace(/\/$/,"")+"/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
   }else{
    endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
   }
