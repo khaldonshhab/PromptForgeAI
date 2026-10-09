@@ -260,15 +260,24 @@ async function callProvider(system,user){
  const mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
  let headers={"Content-Type":"application/json"};
  let payload;
+ let endpoint=AI_API_URL;
  if(mode==="gemini"){
   headers["x-goog-api-key"]=AI_API_KEY;
-  payload={systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:user}]}],generationConfig:{temperature:0.4}};
+  // A Gemini key must be sent to Google's generateContent endpoint, not an old
+  // OpenAI-compatible URL left in Render. Accept a full Gemini endpoint or a
+  // Google API base URL; otherwise derive the official endpoint from AI_MODEL.
+  if(/generativelanguage\\.googleapis\\.com/i.test(endpoint)){
+   if(!/:[^/]+Content(?:\\?|$)/i.test(endpoint)) endpoint=endpoint.replace(/\\/$/,"")+"/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
+  }else{
+   endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
+  }
+  payload={systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:user}]}],generationConfig:{temperature:0.4,responseMimeType:"text/plain"}};
  }else{
   headers.Authorization="Bearer "+AI_API_KEY;
   payload={model:AI_MODEL,instructions:system,input:user};
   if(mode==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  }
- const r=await fetch(AI_API_URL,{method:"POST",headers,body:JSON.stringify(payload)});
+ const r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload)});
  const t=await r.text();
  if(!r.ok){console.error("AI provider request failed:",mode||"responses","HTTP",r.status,t.slice(0,500));throw new Error("provider_http_"+r.status);}
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
