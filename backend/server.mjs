@@ -279,7 +279,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- const leakedCompilerText=()=>isCompilerEcho(prompt)||/execute this as an?\\s+.+?\\s+task|task type:\\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
+ const leakedCompilerText=()=>isCompilerEcho(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
  if(leakedCompilerText()){
   console.warn("Prompt output rejected: compiler instructions leaked; using safe local fallback");
   prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
