@@ -3,6 +3,12 @@ import java.io.*; import java.net.*; import java.nio.charset.StandardCharsets; i
 
 public final class RemotePromptClient{
  public interface CB{void done(boolean ok,String value);}
+ private String httpError(int code,String response){
+  String detail="";
+  try{JSONObject j=new JSONObject(response);detail=j.optString("error","");if(detail.isEmpty())detail=j.optString("message","");}catch(Exception ignored){}
+  if(detail.isEmpty())detail="http_"+code;
+  return "http_"+code+":"+detail.replaceAll("[\\r\\n\\t]"," ").trim();
+ }
  private void request(String method,String url,String token,String body,CB cb){
   new Thread(()->{
    HttpURLConnection c=null;
@@ -28,12 +34,14 @@ public final class RemotePromptClient{
     if(raw!=null){
      try(BufferedReader br=new BufferedReader(new InputStreamReader(raw,StandardCharsets.UTF_8))){
       String line;
-      while((line=br.readLine())!=null)sb.append(line).append('\n');
+      while((line=br.readLine())!=null)sb.append(line).append('\\n');
      }
     }
-    cb.done(code>=200&&code<300,code>=200&&code<300?sb.toString().trim():"http_"+code);
+    String response=sb.toString().trim();
+    cb.done(code>=200&&code<300,code>=200&&code<300?response:httpError(code,response));
    }catch(Exception e){
-    cb.done(false,e.getMessage()==null?"network error":e.getMessage());
+    String message=e.getMessage();
+    cb.done(false,message==null||message.trim().isEmpty()?e.getClass().getSimpleName():message);
    }finally{
     if(c!=null)c.disconnect();
    }
@@ -42,7 +50,7 @@ public final class RemotePromptClient{
  private void post(String url,String token,String body,CB cb){request("POST",url,token,body,cb);}
  private void postPrompt(String url,String token,String body,CB cb){request("POST",url,token,body,(ok,s)->{if(!ok){cb.done(false,s);return;}try{JSONObject response=new JSONObject(s);if("local".equalsIgnoreCase(response.optString("mode",""))){cb.done(false,"ai_unconfigured");return;}String prompt=response.optString("prompt","").trim();if(prompt.isEmpty()){cb.done(false,"empty_prompt");return;}cb.done(true,prompt);}catch(Exception e){cb.done(false,"invalid_prompt_response");}});}
  public void updatePassword(String base,String token,String password,CB cb){try{JSONObject j=new JSONObject();j.put("password",password);request("PATCH",base.replaceAll("/$","")+"/v1/auth/account",token,j.toString(),cb);}catch(Exception e){cb.done(false,e.getMessage());}}
- public void health(String base,CB cb){new Thread(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(base.replaceAll("/$","")+"/health").openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);int code=c.getResponseCode();cb.done(code==200,""+code);}catch(Exception e){cb.done(false,e.getMessage());}}).start();}
+ public void health(String base,CB cb){new Thread(()->{try{HttpURLConnection c=(HttpURLConnection)new URL(base.replaceAll("/$","")+"/health").openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);int code=c.getResponseCode();InputStream raw=code>=200&&code<300?c.getInputStream():c.getErrorStream();StringBuilder sb=new StringBuilder();if(raw!=null)try(BufferedReader br=new BufferedReader(new InputStreamReader(raw,StandardCharsets.UTF_8))){String line;while((line=br.readLine())!=null)sb.append(line);}cb.done(code==200,code==200?sb.toString():httpError(code,sb.toString()));c.disconnect();}catch(Exception e){cb.done(false,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage());}}).start();}
  public void login(String base,String username,String password,String deviceId,CB cb){try{JSONObject j=new JSONObject();j.put("username",username);j.put("password",password);j.put("deviceId",deviceId);post(base.replaceAll("/$","")+"/v1/auth/login",null,j.toString(),cb);}catch(Exception e){cb.done(false,e.getMessage());}}
  public void adminLogin(String base,String username,String password,CB cb){try{JSONObject j=new JSONObject();j.put("username",username);j.put("password",password);post(base.replaceAll("/$","")+"/admin/login",null,j.toString(),cb);}catch(Exception e){cb.done(false,e.getMessage());}}
  public void adminUsers(String base,String token,CB cb){request("GET",base.replaceAll("/$","")+"/admin/users",token,null,cb);}
