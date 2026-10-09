@@ -287,9 +287,9 @@ async function callProvider(system,user){
 }
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
-  const inferredTask=String(x.task||"General").trim()||"General";
-  let sourceIdea=cleanUserIdea(x.idea);
-  return{prompt:localPrompt(sourceIdea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
+  // Do not present a local template as a successful AI-generated prompt.
+  console.error("Prompt generation unavailable: AI provider configuration is incomplete.");
+  throw new Error("provider_not_configured");
  }
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
  const requestedTask=String(x.task||"General").trim();
@@ -330,11 +330,9 @@ async function generate(x){
  }
  const leakedCompilerText=()=>isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
  if(leakedCompilerText()){
-  console.warn("Prompt output rejected: compiler instructions leaked; using safe local fallback");
-  prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
+  console.warn("Prompt output rejected: compiler instructions or malformed text detected.");
+  throw new Error("prompt_output_validation_failed");
  }
- // Final output must not contain client/compiler scaffolding, even after retry.
- if(leakedCompilerText())throw new Error("prompt_output_validation_failed");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
