@@ -5,7 +5,7 @@ import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
-const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
+const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,"").replace(/\/rest\/v1$/i,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 let USERS=[];
