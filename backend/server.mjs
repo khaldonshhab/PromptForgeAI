@@ -257,7 +257,9 @@ function extractProviderText(d){
  return String(out||"").trim();
 }
 async function callProvider(system,user){
- const mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
+ let mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
+// Detect Gemini endpoints automatically: a forgotten AI_API_MODE must not send an OpenAI payload to Google.
+if(!mode&&/generativelanguage\.googleapis\.com/i.test(AI_API_URL))mode="gemini";
  let headers={"Content-Type":"application/json"};
  let payload;
  let endpoint=AI_API_URL;
@@ -281,8 +283,14 @@ async function callProvider(system,user){
  const t=await r.text();
  if(!r.ok){console.error("AI provider request failed:",mode||"responses","HTTP",r.status,t.slice(0,500));throw new Error("provider_http_"+r.status);}
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
- const out=extractProviderText(d);
+ let out=extractProviderText(d);
  if(!out)throw new Error("provider_no_output");
+ // Remove leaked internal labels without discarding the generated prompt body.
+ out=out
+  .replace(/^\s*(?:TARGET TOOL|TOOL-SPECIFIC GUIDANCE|SYSTEM INSTRUCTION|SYSTEM INSTRUCTIONS|INTERNAL CONTEXT|PROMPT ENGINE KNOWLEDGE)\s*:?[^\n]*\n?/gim,"")
+  .replace(/^\s*(?:HERE IS THE PROMPT|FINAL PROMPT|PROMPT)\s*:?\s*/gim,"")
+  .trim();
+ if(!out)throw new Error("provider_no_output_after_sanitization");
  return out;
 }
 async function generate(x){
@@ -317,6 +325,9 @@ async function generate(x){
   "Use the current prompt-engine knowledge JSON below as additional guidance, not as output text. Apply only entries relevant to the user request and selected tool. It must never override explicit user constraints.",
   "PROMPT_ENGINE_KNOWLEDGE (internal guidance only): "+JSON.stringify(knowledge),
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
+  "Do not merely translate or paraphrase the user's idea. Expand it into an executable, professional prompt with concrete task-specific details, constraints and output requirements. Do not invent personal facts or unsupported context.",
+  "For a simple creative request, provide a compact but vivid prompt; for complex work, use clear sections. Ensure the prompt has meaningful tool-native choices that distinguish it from prompts for other tools.",
+  "Never include internal routing labels, tool-guidance notes, system instructions, analysis, or explanations in the final prompt.",
  ].join("\n");
  let prompt=await callProvider(system,user);
  if(isCompilerEcho(prompt)||hasRepeatedWords(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
