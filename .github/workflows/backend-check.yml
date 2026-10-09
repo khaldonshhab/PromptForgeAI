@@ -1,0 +1,29 @@
+name: Validate PromptForge Backend
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-check.yml"
+permissions:
+  contents: read
+concurrency:
+  group: promptforge-backend-check
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check JavaScript syntax
+        run: |
+          node --check backend/server.mjs
+          node --check backend/prompt-engine.mjs
+      - name: Validate prompt knowledge JSON
+        run: node -e "const x=require('./backend/prompt-engine.json'); if(!Array.isArray(x.principles)||!Array.isArray(x.tool_updates)) process.exit(1); console.log('Prompt knowledge JSON valid:', x.version)"
+      - name: Build backend Docker image
+        run: docker build -t promptforge-backend-check ./backend
