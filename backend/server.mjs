@@ -196,6 +196,25 @@ function localPrompt(idea,platform,task){
  if(!request)return "";
  const profile=profileFor(platformName,taskName);
  const native=TOOL_GUIDANCE[platformName]||RULES[profile]||"Use the selected tool's native conventions and avoid unsupported syntax.";
+ // In no-provider mode, visual requests still need a finished prompt, not a generic wrapper around raw input.
+ if(profile==="image"||profile.startsWith("image-")){
+  let visual=request
+   .replace(/^\s*(?:i\s+want\s+(?:a\s+)?(?:picture|photo|image|visual)\s+of|please\s+(?:create|generate|make)\s+(?:a\s+)?(?:picture|photo|image)\s+of|create\s+(?:a\s+)?(?:picture|photo|image)\s+of)\s*/i,"")
+   .replace(/\b(torn)(?:[\s,]+torn)+\b/gi,"torn")
+   .replace(/\bmoon\s+light\b/gi,"moonlight")
+   .replace(/\broof\s+slot\b/gi,"opening in the roof")
+   .replace(/\s+/g," ")
+   .replace(/\s+([,.;])/g,"$1")
+   .trim()
+   .replace(/^./,c=>c.toUpperCase());
+  const cinematic=/\b(cinema|cinematic|film|movie)\b/i.test(visual);
+  const visualPrompt=visual.replace(/[. ]+$/,"");
+  return {
+   prompt: visualPrompt + ". Create a cohesive, highly detailed visual scene with deliberate composition, believable materials and spatial depth. Use atmospheric lighting, controlled contrast, a restrained color palette, and textures that support the requested mood. Keep every explicitly requested subject and detail visible; avoid duplicated objects, accidental text, visual clutter, and unrelated elements. " + (cinematic?"Use cinematic framing, dramatic light and shadow, and a strong visual focal point. ":"") + "Photorealistic detail, immersive atmosphere, polished professional image-generation prompt.",
+   profile,
+   mode:"local"
+  };
+ }
  const title=profile==="coding"?"Senior Software Engineer":profile==="research"?"Senior Research Analyst":profile==="voice"?"Professional Voice Director":profile==="video"?"Film Director and Cinematographer":profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"?"Visual Director":profile==="music"?"Music Producer":"Senior AI Specialist";
  const execution=profile==="coding"
   ?"Inspect the supplied project context before proposing changes. Identify the relevant files and interfaces, preserve the existing architecture, handle important edge cases, and include verifiable tests or checks."
