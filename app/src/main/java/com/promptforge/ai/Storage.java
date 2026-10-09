@@ -2,6 +2,8 @@ package com.promptforge.ai;
 
 import android.content.*;
 import android.provider.Settings;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import org.json.JSONArray;
 import java.nio.charset.StandardCharsets;
@@ -70,8 +72,15 @@ public final class Storage{
     KeyStore.Entry entry=ks.getEntry(KEY_ALIAS,null);
     if(entry instanceof KeyStore.SecretKeyEntry)return ((KeyStore.SecretKeyEntry)entry).getSecretKey();
    }
-   KeyGenerator generator=KeyGenerator.getInstance("AES",KEYSTORE);
-   generator.init(128);
+   KeyGenerator generator=KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,KEYSTORE);
+   KeyGenParameterSpec spec=new KeyGenParameterSpec.Builder(
+    KEY_ALIAS,
+    KeyProperties.PURPOSE_ENCRYPT|KeyProperties.PURPOSE_DECRYPT
+   ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+    .setRandomizedEncryptionRequired(true)
+    .build();
+   generator.init(spec);
    return generator.generateKey();
   }catch(Exception e){
    return null;
