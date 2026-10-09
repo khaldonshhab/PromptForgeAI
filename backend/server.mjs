@@ -279,7 +279,13 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
+ const leakedCompilerText=()=>isCompilerEcho(prompt)||/execute this as an?\\s+.+?\\s+task|task type:\\s*image prompt|use the available context and distinguish verified information|preserve the original intent and add only requirements that materially improve the result|return the final result directly in the format best suited/i.test(String(prompt||""));
+ if(leakedCompilerText()){
+  console.warn("Prompt output rejected: compiler instructions leaked; using safe local fallback");
+  prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
+ }
+ // Final output must not contain client/compiler scaffolding, even after retry.
+ if(leakedCompilerText())throw new Error("prompt_output_validation_failed");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
