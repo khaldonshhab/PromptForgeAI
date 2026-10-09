@@ -993,7 +993,7 @@ public class MainActivity extends Activity {
 
     private void generate(String idea,TextView sourceButton){
         toast(tr("جارٍ توليد البرومبت…","Generating prompt…"));
-        new RemotePromptClient().generate(BASE_URL,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
+        new RemotePromptClient().generate(BASE_URL,idea,sel,task,"English",s.accountToken(),(ok,val)->runOnUiThread(()->{
             sourceButton.setEnabled(true);
             if(ok){
                 last=val;
