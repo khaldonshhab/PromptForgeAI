@@ -179,11 +179,19 @@ function hasRepeatedWords(s){return /\b([a-z]{2,})(?:\s+\1\b)+/i.test(String(s||
 function hasArabicScript(s){for(const ch of String(s||"")){const n=ch.codePointAt(0);if((n>=0x0600&&n<=0x06FF)||(n>=0x0750&&n<=0x077F)||(n>=0x08A0&&n<=0x08FF))return true;}return false;}
 function looksLikeTranslationOnly(output, idea, profile){
  const out=String(output||"").trim();
+ const lower=out.toLowerCase();
  const words=out.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g)||[];
  const sourceWords=String(idea||"").trim().split(/\s+/).filter(Boolean).length;
- if(hasArabicScript(out)||words.length<18)return true;
+ const visual=/image|video|music|design|firefly|leonardo|flux|krea|freepik|photoroom/i.test(String(profile||""));
+ // Reject common signs of literal/low-quality translation instead of treating English as proof of prompt quality.
+ const translationArtifacts=/\b(i have a (?:cinematic )?(?:image|picture|photo) of|seated seats|air dust|an isolation atmosphere|professional configuration|inside the ceiling|an atmosphere of isolation and ambiguity)\b/i.test(out);
+ if(hasArabicScript(out)||words.length<18||translationArtifacts)return true;
  if(sourceWords>=5&&words.length<Math.min(28,Math.ceil(sourceWords*1.15)))return true;
- if(/image|video|music/i.test(String(profile||""))&&words.length<28)return true;
+ // A substantial visual brief must add concrete scene direction, not merely restate the source idea.
+ if(visual&&sourceWords>=14&&words.length<42)return true;
+ if(visual&&sourceWords>=8&&words.length<28)return true;
+ // Reject obvious request restatements that do not contain actionable prompt language.
+ if(sourceWords>=8&&/^(i want|i have|create an image of|make an image of|a picture of)\b/i.test(out)&&words.length<45)return true;
  return false;
 }
 function isCompilerEcho(s){
