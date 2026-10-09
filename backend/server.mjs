@@ -143,6 +143,18 @@ const PROMPT_RATE_WINDOW_MS=60000,PROMPT_RATE_MAX=20,promptRate=new Map();
 function allowPrompt(user){const now=Date.now(),key=String(user||"unknown"),old=promptRate.get(key);if(!old||now-old.reset>=PROMPT_RATE_WINDOW_MS){promptRate.set(key,{count:1,reset:now});return true;}if(old.count>=PROMPT_RATE_MAX)return false;old.count++;return true;}
 function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 function inferTask(idea,platform){const s=String(idea||"").toLowerCase()+" "+String(platform||"").toLowerCase();if(/image|photo|portrait|logo|poster|illustration|صورة|بورتريه|شعار|بوستر|تصميم/.test(s))return"Image";if(/video|film|shot|camera|animation|فيديو|مشهد|لقطة|كاميرا|تحريك/.test(s))return"Video";if(/voice|narration|dub|tts|voiceover|تعليق صوتي|دوبلاج|مذيع|صوت/.test(s))return"Voice";if(/music|song|lyrics|أغنية|موسيقى|لحن|كلمات/.test(s))return"Music";if(/code|coding|program|app|api|برمجة|كود|تطبيق|واجهة برمجية/.test(s))return"Coding";if(/research|study|paper|بحث|دراسة|مصادر|مراجع/.test(s))return"Research";if(/marketing|ad|campaign|seo|تسويق|إعلان|حملة|سيو/.test(s))return"Marketing";return"General";}
+function cleanUserIdea(value){
+ let s=String(value||"").trim();
+ // The Android client may append generic prompt-building instructions to the user's actual idea.
+ // Remove only known framework boilerplate; preserve the user's substantive request.
+ const boilerplate=[
+  /\n\s*Execute this as an?\s+.+?\s+task\.?\s*/ig,
+  /\n\s*Use the available context and distinguish verified information from material assumptions\.[\s\S]*?Return the final result directly in the format best suited to the task\.?\s*/ig,
+  /\n\s*Task type:\s*[^\n]+\s*/ig
+ ];
+ for(const pattern of boilerplate)s=s.replace(pattern,"\n");
+ return s.replace(/\n{3,}/g,"\n\n").trim();
+}
 function isCompilerEcho(s){
  const z=String(s||"").toLowerCase();
  return z.includes("target tool:")
@@ -227,7 +239,7 @@ async function callProvider(system,user){
 async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
   const inferredTask=String(x.task||"General").trim()||"General";
-  let sourceIdea=String(x.idea||"").trim();
+  let sourceIdea=cleanUserIdea(x.idea);
   return{prompt:localPrompt(sourceIdea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
  }
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
@@ -237,7 +249,8 @@ async function generate(x){
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
  const knowledge=await getPromptKnowledge();
  const lang="English";
- const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+String(x.task||"General")+"</requested_task>";
+ const cleanedIdea=cleanUserIdea(x.idea);
+ const user="<user_idea>\n"+cleanedIdea+"\n</user_idea>\n<requested_task>"+String(x.task||"General")+"</requested_task>";
  const system=[
   "You are the professional prompt architect inside a prompt-generation service.",
   "Return exactly one ready-to-paste prompt for the requested tool. The result must be a complete, intelligent, structured instruction that another AI can execute reliably.",
@@ -255,7 +268,7 @@ async function generate(x){
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
  ].join("\n");
  let prompt=await callProvider(system,user);
- if(isCompilerEcho(prompt)){
+ if(isCompilerEcho(prompt)||/execute this as an?\s+.+?\s+task|task type:\s*image prompt|use the available context and distinguish verified information/i.test(prompt)){
   const retrySystem=[
    "Write the final user-facing prompt now.",
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
@@ -266,7 +279,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
+ if(isCompilerEcho(prompt))prompt=localPrompt(cleanedIdea,x.platform,inferredTask);
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
