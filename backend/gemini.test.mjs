@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGeminiRequest, extractGeminiText } from './server.mjs';
+import { buildGeminiModelUrl, buildGeminiRequest, extractGeminiText } from './server.mjs';
 
 test('buildGeminiRequest uses Google GenerateContent contract', () => {
   const request = buildGeminiRequest({
@@ -36,6 +36,17 @@ test('buildGeminiRequest adds v1beta when given the API root', () => {
     user: 'User'
   });
   assert.equal(request.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key');
+});
+
+test('buildGeminiModelUrl checks the configured Gemini model', () => {
+  assert.equal(
+    buildGeminiModelUrl({
+      apiUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      apiKey: 'test-key',
+      model: 'gemini-2.5-flash'
+    }),
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=test-key'
+  );
 });
 
 test('extractGeminiText reads the Google response format', () => {
