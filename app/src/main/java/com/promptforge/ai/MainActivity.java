@@ -609,7 +609,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
         EditText url=editor("https://...","https://...",1);
         url.setSingleLine(true);
-        url.setText(s.get("backend_url",""));
+        url.setText(backendBase());
         url.setGravity(ar()?Gravity.CENTER_VERTICAL|Gravity.RIGHT:Gravity.CENTER_VERTICAL|Gravity.LEFT);
         r.addView(url,new LinearLayout.LayoutParams(-1,dp(56)));
         addGap(r,8);
