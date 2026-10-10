@@ -359,8 +359,26 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private String backendBase(){
-        String saved=s.get("backend_url","").trim().replaceAll("/+$", "");
+        String saved=s.get("backend_url","").trim();
         if(saved.isEmpty() || saved.equals("https://promptforgeai-backend.onrender.com")) return "https://promptforge-backend-2p4q.onrender.com";
+        // The app expects the backend origin, not an endpoint or a nested path.
+        // A saved URL such as ".../v1" would otherwise call ".../v1/v1/auth/login"
+        // and the server correctly responds with {"error":"not_found"}.
+        try{
+            Uri u=Uri.parse(saved);
+            String scheme=u.getScheme();
+            String host=u.getHost();
+            if(host!=null && !host.trim().isEmpty()){
+                if(scheme==null || scheme.isEmpty()) scheme="https";
+                String authority=host;
+                if(u.getPort()!=-1) authority += ":"+u.getPort();
+                saved=scheme+"://"+authority;
+            }else{
+                saved=saved.replaceAll("/+$", "");
+            }
+        }catch(Exception ignored){
+            saved=saved.replaceAll("/+$", "");
+        }
         return saved;
     }
 
