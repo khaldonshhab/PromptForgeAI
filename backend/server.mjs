@@ -7,7 +7,7 @@ const PORT=Number(process.env.PORT||8787);
 const AI_PROVIDER=String(process.env.AI_PROVIDER||"gemini").toLowerCase();
 const AI_API_URL=process.env.AI_API_URL||(AI_PROVIDER==="gemini"?"https://generativelanguage.googleapis.com/v1beta":"");
 const AI_API_KEY=process.env.AI_API_KEY||"";
-const AI_MODEL=process.env.AI_MODEL||(AI_PROVIDER==="gemini"?"gemini-2.5-flash":"");
+const AI_MODEL=process.env.AI_MODEL||(AI_PROVIDER==="gemini"?"gemini-3.8-flash":"");
 const AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
@@ -47,6 +47,22 @@ export function extractGeminiText(payload) {
     || '';
   return String(text || '').trim();
 }
+
+export function geminiErrorMessage(responseBody, status, model) {
+  let message="";
+  let code="";
+  try {
+    const error=JSON.parse(responseBody)?.error;
+    message=String(error?.message||"");
+    code=String(error?.status||"");
+  } catch(e) {}
+  if(code==="API_KEY_INVALID"||/api key.{0,30}(invalid|not valid)|invalid api key/i.test(message))return "Gemini API key is invalid or unauthorized. Check the AI_API_KEY setting.";
+  if(/no longer available|model.{0,40}(not found|unavailable|not supported)/i.test(message))return `Gemini model ${model} is unavailable for this API key. Set AI_MODEL to gemini-3.8-flash or another supported GenerateContent model.`;
+  if(status===429||code==="RESOURCE_EXHAUSTED")return "Gemini quota or rate limit reached. Try again later.";
+  return `Gemini request failed (HTTP ${status}). Check AI_API_URL, AI_API_KEY, and AI_MODEL.`;
+}
+
+function httpError(message,statusCode){const error=new Error(message);error.statusCode=statusCode;return error;}
 
 const b64u=x=>Buffer.from(x).toString("base64url");
 function passwordHash(password){
@@ -169,8 +185,9 @@ function send(res,code,obj){res.writeHead(code,{"Content-Type":"application/json
 function body(req){return new Promise((resolve,reject)=>{let s="";req.on("data",c=>{s+=c;if(s.length>1200000)reject(new Error("body_too_large"));});req.on("end",()=>{try{resolve(JSON.parse(s||"{}"))}catch(e){reject(new Error("invalid_json"))}});});}
 function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platform];const t=String(task||"").toLowerCase();if(t.includes("video"))return"video";if(t.includes("image"))return"image";if(t.includes("voice")||t.includes("tts"))return"voice";if(t.includes("coding"))return"coding";if(t.includes("research"))return"research";if(t.includes("marketing"))return"marketing";return"general";}
 async function generate(x){
- if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
- if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
+ const missing=[!AI_API_URL&&"AI_API_URL",!AI_API_KEY&&"AI_API_KEY",!AI_MODEL&&"AI_MODEL"].filter(Boolean);
+ if(missing.length)throw httpError("AI backend is missing required configuration: "+missing.join(", "),503);
+ if(typeof x.platform!=="string"||!x.platform.trim())throw httpError("platform_required",400);
  const session=auth(x.token);
  const profile=profileFor(x.platform,x.task);
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
@@ -184,18 +201,20 @@ async function generate(x){
   requestUrl=gemini.url;
   requestBody=gemini.body;
  }
- const r=await fetch(requestUrl,{method:"POST",headers:provider==="gemini"?{"Content-Type":"application/json"}:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(requestBody)});
- const t=await r.text();if(!r.ok){let error=t||"provider_http_"+r.status;try{const parsed=JSON.parse(t);error=parsed?.error?.message||parsed?.message||error;}catch(e){}throw new Error(error);} 
+ let r;
+ try{r=await fetch(requestUrl,{method:"POST",headers:provider==="gemini"?{"Content-Type":"application/json"}:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(requestBody),signal:AbortSignal.timeout(25000)});}
+ catch(e){throw httpError(e.name==="TimeoutError"?"Gemini request timed out. Try again.":"AI provider could not be reached.",502);}
+ const t=await r.text();if(!r.ok){const message=provider==="gemini"?geminiErrorMessage(t,r.status,AI_MODEL):`AI provider request failed (HTTP ${r.status}).`;throw httpError(message,502);}
  let d=JSON.parse(t),out="";
  if(provider==="gemini")out=extractGeminiText(d); else out=d.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
- if(!out)throw new Error("provider_no_output");
+ if(!out)throw httpError("provider_no_output",502);
  const prompt=out.trim();
- if(prompt.length<20)throw new Error("provider_prompt_too_short");
+ if(prompt.length<20)throw httpError("provider_prompt_too_short",502);
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
- if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
+ if(forbidden)throw httpError("platform_syntax_mismatch_midjourney",502);
  const sdMismatch=profile==="image-sd" && /--ar|--stylize|--chaos|--sref/i.test(prompt);
- if(sdMismatch)throw new Error("platform_syntax_mismatch_sd");
+ if(sdMismatch)throw httpError("platform_syntax_mismatch_sd",502);
  return{prompt,profile};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(fileURLToPath(import.meta.url))){
@@ -216,15 +235,15 @@ const server=http.createServer(async(req,res)=>{
   if(missing.length)return send(res,503,{ok:false,configured:false,provider:AI_PROVIDER,model:AI_MODEL||null,missing});
   if(AI_PROVIDER!=="gemini")return send(res,501,{ok:false,configured:true,provider:AI_PROVIDER,error:"provider_connection_test_not_supported"});
   try{
-   const r=await fetch(buildGeminiModelUrl({apiUrl:AI_API_URL,apiKey:AI_API_KEY,model:AI_MODEL}),{signal:AbortSignal.timeout(8000)});
+  const probe=buildGeminiRequest({apiUrl:AI_API_URL,apiKey:AI_API_KEY,model:AI_MODEL,system:"Return only the word OK.",user:"Reply with OK."});
+  const r=await fetch(probe.url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(probe.body),signal:AbortSignal.timeout(15000)});
    const t=await r.text();
    if(!r.ok){
-    let message="gemini_connection_failed";
-    try{const parsed=JSON.parse(t);message=parsed?.error?.message||message;}catch(e){}
-    return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:message});
+   return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:geminiErrorMessage(t,r.status,AI_MODEL)});
    }
-   return send(res,200,{ok:true,configured:true,connected:true,provider:AI_PROVIDER,model:AI_MODEL});
-  }catch(e){return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:e.name==="TimeoutError"?"ai_connection_timeout":"ai_connection_failed"});}
+  if(!extractGeminiText(JSON.parse(t)))return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:"Gemini returned no text for the connectivity check."});
+  return send(res,200,{ok:true,configured:true,connected:true,provider:AI_PROVIDER,model:AI_MODEL,check:"generateContent"});
+  }catch(e){return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:e.name==="TimeoutError"?"Gemini connectivity check timed out.":"Gemini connectivity check failed."});}
  }
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}
  if(req.method==="PATCH"&&req.url==="/v1/auth/account")try{const p=auth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p||!p.u)return send(res,401,{error:"unauthorized"});const x=await body(req),found=USERS.find(v=>String(v.username||"")===p.u);if(!found||found.enabled===false)return send(res,401,{error:"account_disabled"});if(typeof x.password!=="string"||x.password.length<8)return send(res,400,{error:"password_too_short"});found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true,token:signToken(found),username:found.username});}catch(e){return send(res,400,{error:e.message||"account_update_failed"});}
@@ -234,7 +253,7 @@ const server=http.createServer(async(req,res)=>{
  if(req.method==="PATCH"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));const x=await body(req),found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});if(typeof x.enabled==="boolean")found.enabled=x.enabled;if(typeof x.password==="string"&&x.password.length>=8)found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"update_user_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));const before=USERS.length;USERS=USERS.filter(v=>v.username!==u);if(USERS.length===before)return send(res,404,{error:"user_not_found"});saveUsers();return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>12000)return send(res,413,{error:"idea_too_long"});if(typeof x.platform!=="string"||!x.platform.trim())return send(res,400,{error:"platform_required"});if(x.platform.length>100||x.task!=null&&(typeof x.task!=="string"||x.task.length>100)||x.language!=null&&(typeof x.language!=="string"||x.language.length>20))return send(res,400,{error:"invalid_request_fields"});return send(res,200,await generate(x));}catch(e){return send(res,e.statusCode||500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 });
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
