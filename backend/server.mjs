@@ -11,8 +11,9 @@ function saveUsers(){fs.writeFileSync(USERS_FILE,JSON.stringify(USERS,null,2));}
 
 export function buildGeminiRequest({ apiUrl, apiKey, model, system, user }) {
   const base=String(apiUrl||"").replace(/\/+$/,'');
-  const normalized=base.includes('/models') ? base.replace(/\/models\/?$/, '') : base.replace(/\/v1(?:beta)?\/?$/, '');
-  const endpoint=`${normalized}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const withoutResource=base.replace(/\/models(?:\/.*)?$/,'');
+  const versioned=/\/v1(?:beta)?$/.test(withoutResource) ? withoutResource : withoutResource+"/v1beta";
+  const endpoint=versioned+"/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(apiKey);
   return {
     url: endpoint,
     body: {
@@ -157,10 +158,10 @@ async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("AI backend is not configured");
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
  const session=auth(x.token);
- const profile=profileFor(x.platform,x.task),lang=x.language==="ar"?"Arabic":"the user's requested language";
+ const profile=profileFor(x.platform,x.task);
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
- const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\\nPROFILE: "+profile+"\\nLANGUAGE: "+lang+"\\nNATIVE PROMPT RULES: "+rule+"\\nNever mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
- const user="USER IDEA:\\n"+x.idea+"\\n\\nTASK TYPE:\\n"+(x.task||"General"); const provider=String(process.env.AI_PROVIDER||"gemini").toLowerCase(); let payload={model:AI_MODEL,instructions:system,input:user};
+ const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\nPROFILE: "+profile+"\nOUTPUT LANGUAGE: English\nNATIVE PROMPT RULES: "+rule+"\nThe user's idea may be written in any language; understand it directly without translating it as a separate step. Always write the finished prompt in English. Never output a translation or explanation. Never mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
+ const user="USER IDEA:\n"+x.idea+"\n\nTASK TYPE:\n"+(x.task||"General"); const provider=String(process.env.AI_PROVIDER||"gemini").toLowerCase(); let payload={model:AI_MODEL,instructions:system,input:user};
  if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  let requestUrl=AI_API_URL;
  let requestBody=payload;
