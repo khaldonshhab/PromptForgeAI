@@ -22,7 +22,8 @@ public class AdminActivity extends Activity {
         s.setUseWideViewPort(true);
         String token=getIntent().getStringExtra("admin_token");
         String configured=getSharedPreferences("pf", MODE_PRIVATE).getString("backend_url", DEFAULT_BACKEND_URL);
-        String base=configured == null || configured.trim().isEmpty() ? DEFAULT_BACKEND_URL : configured.trim();
+        String trimmed=configured == null ? "" : configured.trim();
+        String base=trimmed.isEmpty() || trimmed.equals("https://promptforgeai-backend.onrender.com") ? DEFAULT_BACKEND_URL : trimmed;
         String url=base.replaceAll("/$", "") + "/admin" + (token==null||token.isEmpty()?"":"?token=" + Uri.encode(token));
         w.loadUrl(url);
         setContentView(w);
