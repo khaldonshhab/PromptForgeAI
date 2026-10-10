@@ -2,6 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
@@ -184,6 +185,7 @@ async function generate(x){
  if(sdMismatch)throw new Error("platform_syntax_mismatch_sd");
  return{prompt,profile};
 }
+if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(fileURLToPath(import.meta.url))){
 http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
  if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
@@ -198,3 +200,4 @@ http.createServer(async(req,res)=>{
  if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
+}
