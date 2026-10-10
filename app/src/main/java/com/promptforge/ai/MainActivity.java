@@ -360,7 +360,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
 
     private String backendBase(){
         String saved=s.get("backend_url","").trim();
-        return saved.isEmpty() ? "https://promptforgeai-backend.onrender.com" : saved.replaceAll("/$", "");
+        return saved.isEmpty() ? "https://promptforge-backend-2p4q.onrender.com" : saved.replaceAll("/$", "");
     }
 
     private void generate(String idea){
