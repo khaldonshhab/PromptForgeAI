@@ -626,6 +626,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 org.json.JSONObject status=new org.json.JSONObject(msg);
                 org.json.JSONArray missing=status.optJSONArray("missing");
                 if(missing!=null&&missing.length()>0)detail=missing.join(", ");
+                else if(status.has("error"))detail=status.optString("error","connection_failed");
             }catch(Exception ignored){}
             toast(ok?tr("الخادم وإعدادات Gemini موجودة","Backend and Gemini settings are present"):tr("فشل الاتصال أو إعداد Gemini: ","Backend/Gemini configuration failed: ")+detail);
         })));
