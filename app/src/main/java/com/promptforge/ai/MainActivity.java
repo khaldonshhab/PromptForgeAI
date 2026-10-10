@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
         TextView title=text(tr(arTitle,enTitle),25,WHITE,true);
         title.setGravity(Gravity.CENTER);
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(58));
+        tp.leftMargin=dp(88); tp.rightMargin=dp(88);
         bar.addView(title,tp);
         TextView back=smallBack();
         FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(82),dp(46));
@@ -264,7 +265,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         TextView hero=text(tr("حوّل فكرتك إلى برومبت احترافي","Turn your idea into a professional prompt"),22,WHITE,true);
         hero.setGravity(ar()?Gravity.RIGHT:Gravity.LEFT);
         r.addView(hero,new LinearLayout.LayoutParams(-1,dp(48)));
-        TextView sub=text(tr("محرك محلي سريع مع دعم عشرات أدوات الذكاء الاصطناعي وقابلية التوسعة","Fast local engine with dozens of AI tools and an extensible catalog"),14,MUTED,false);
+        TextView sub=text(tr("أنشئ برومبتات مخصصة لأدوات الذكاء الاصطناعي المختلفة","Create prompts tailored to different AI tools"),14,MUTED,false);
         r.addView(sub,new LinearLayout.LayoutParams(-1,dp(48)));
 
         addGap(r,12);
@@ -306,7 +307,8 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         LinearLayout r=column();
         titleBar(r,"إنشاء Prompt","Create Prompt");
         EditText idea=editor("اكتب فكرتك هنا...","Describe your idea...",6);
-        r.addView(idea,new LinearLayout.LayoutParams(-1,dp(180)));
+        idea.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        r.addView(idea,new LinearLayout.LayoutParams(-1,dp(190)));
         addGap(r,10);
 
         TextView platform=button(tr("المنصة: ","Platform: ")+bidi(sel),true);
@@ -320,7 +322,11 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,10);
 
         TextView gen=button(tr("✦  توليد البرومبت","✦  Generate Prompt"),true);
-        gen.setOnClickListener(v->generate(idea.getText().toString()));
+        gen.setOnClickListener(v->{
+            String value=idea.getText().toString().trim();
+            if(value.length()<3){idea.setError(tr("اكتب فكرتك أولاً","Enter your idea first"));idea.requestFocus();return;}
+            generate(value);
+        });
         r.addView(gen,new LinearLayout.LayoutParams(-1,dp(62)));
 
         addGap(r,8);
@@ -398,10 +404,12 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         out.setBackground(rounded(PANEL,BORDER,20));
         out.setPadding(dp(16),dp(16),dp(16),dp(16));
         out.setTextIsSelectable(true);
-        r.addView(out,new LinearLayout.LayoutParams(-1,dp(400)));
+        out.setTextIsSelectable(true);
+        out.setMaxLines(200);
+        r.addView(out,new LinearLayout.LayoutParams(-1,dp(0),1f));
         addGap(r,10);
 
-        TextView copy=button("نسخ".equals("English")? "Copy":tr("نسخ","Copy"),true);
+        TextView copy=button(tr("نسخ البرومبت","Copy prompt"),true);
         copy.setOnClickListener(v->copy(last));
         r.addView(copy,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,8);
@@ -499,7 +507,10 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 row.setBackground(rounded(PANEL,BORDER,18));
                 row.setPadding(dp(14),dp(14),dp(14),dp(14));
                 row.setTextIsSelectable(true);
-                r.addView(row,new LinearLayout.LayoutParams(-1,dp(180)));
+                row.setMaxLines(12);
+                row.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                row.setOnClickListener(v->{last=item;result();});
+                r.addView(row,new LinearLayout.LayoutParams(-1,ViewGroup.LayoutParams.WRAP_CONTENT));
                 addGap(r,8);
             }
         }
@@ -514,10 +525,12 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         TextView brand=text("PromptForge AI",25,WHITE,true);
         brand.setGravity(Gravity.CENTER);
         brand.setTextDirection(View.TEXT_DIRECTION_LTR);
-        top.addView(brand,new FrameLayout.LayoutParams(-1,dp(54)));
+        FrameLayout.LayoutParams brandParams=new FrameLayout.LayoutParams(-1,dp(54));
+        brandParams.leftMargin=dp(96); brandParams.rightMargin=dp(96);
+        top.addView(brand,brandParams);
         TextView langBtn=button(ar()?"العربية":"English",false);
         langBtn.setTextSize(13);
-        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(92),dp(44));
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(dp(88),dp(42));
         lp.gravity=Gravity.CENTER_VERTICAL|Gravity.END;
         top.addView(langBtn,lp);
         langBtn.setOnClickListener(v->languageDialog());
