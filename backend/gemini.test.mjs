@@ -4,7 +4,7 @@ import { buildGeminiRequest, extractGeminiText } from './server.mjs';
 
 test('buildGeminiRequest uses Google GenerateContent contract', () => {
   const request = buildGeminiRequest({
-    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+    apiUrl: 'https://generativelanguage.googleapis.com/v1beta',
     apiKey: 'test-key',
     model: 'gemini-2.5-flash',
     system: 'You are helpful.',
@@ -14,6 +14,28 @@ test('buildGeminiRequest uses Google GenerateContent contract', () => {
   assert.equal(request.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key');
   assert.equal(request.body.systemInstruction.parts[0].text, 'You are helpful.');
   assert.equal(request.body.contents[0].parts[0].text, 'Write a short prompt.');
+});
+
+test('buildGeminiRequest preserves v1beta when URL includes /models', () => {
+  const request = buildGeminiRequest({
+    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+    apiKey: 'test-key',
+    model: 'gemini-2.5-flash',
+    system: 'System',
+    user: 'User'
+  });
+  assert.equal(request.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key');
+});
+
+test('buildGeminiRequest adds v1beta when given the API root', () => {
+  const request = buildGeminiRequest({
+    apiUrl: 'https://generativelanguage.googleapis.com',
+    apiKey: 'test-key',
+    model: 'gemini-2.5-flash',
+    system: 'System',
+    user: 'User'
+  });
+  assert.equal(request.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key');
 });
 
 test('extractGeminiText reads the Google response format', () => {
