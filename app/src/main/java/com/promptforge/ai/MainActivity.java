@@ -373,12 +373,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         }));
     }
 
-    private void local(String idea){
-        last=PromptEngine.generate(idea,find(sel),task,ar());
-        s.add("history",last);
-        result();
-    }
-
     private void result(){
         LinearLayout r=column();
         titleBar(r,"النتيجة","Result");
@@ -471,11 +465,6 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
             .setPositiveButton(tr("اختيار","Select"),(d,w)->{sel=p.name;create();})
             .setNegativeButton(tr("فتح المنصة","Open"),(d,w)->open(p.url))
             .show();
-    }
-
-    private Platform find(String name){
-        for(Platform p:ps)if(p.name.equals(name))return p;
-        return ps.get(0);
     }
 
     private void listScreen(String kind){
