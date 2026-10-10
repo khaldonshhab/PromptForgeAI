@@ -359,9 +359,9 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     }
 
     private String backendBase(){
-        String saved=s.get("backend_url","").trim();
+        String saved=s.get("backend_url","").trim().replaceAll("/+$", "");
         if(saved.isEmpty() || saved.equals("https://promptforgeai-backend.onrender.com")) return "https://promptforge-backend-2p4q.onrender.com";
-        return saved.replaceAll("/$", "");
+        return saved;
     }
 
     private void generate(String idea){
