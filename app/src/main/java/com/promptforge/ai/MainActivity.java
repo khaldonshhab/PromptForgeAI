@@ -404,9 +404,9 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         out.setBackground(rounded(PANEL,BORDER,20));
         out.setPadding(dp(16),dp(16),dp(16),dp(16));
         out.setTextIsSelectable(true);
-        out.setTextIsSelectable(true);
         out.setMaxLines(200);
-        r.addView(out,new LinearLayout.LayoutParams(-1,dp(0),1f));
+        out.setMinHeight(dp(240));
+        r.addView(out,new LinearLayout.LayoutParams(-1,ViewGroup.LayoutParams.WRAP_CONTENT));
         addGap(r,10);
 
         TextView copy=button(tr("نسخ البرومبت","Copy prompt"),true);
