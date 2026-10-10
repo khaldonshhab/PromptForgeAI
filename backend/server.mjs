@@ -9,6 +9,30 @@ let USERS=[];
 try{USERS=fs.existsSync(USERS_FILE)?JSON.parse(fs.readFileSync(USERS_FILE,"utf8")):JSON.parse(process.env.PF_USERS_JSON||"[]");}catch(e){USERS=[];}
 function saveUsers(){fs.writeFileSync(USERS_FILE,JSON.stringify(USERS,null,2));}
 
+export function buildGeminiRequest({ apiUrl, apiKey, model, system, user }) {
+  const base=String(apiUrl||"").replace(/\/+$/,'');
+  const normalized=base.includes('/models') ? base.replace(/\/models\/?$/, '') : base.replace(/\/v1(?:beta)?\/?$/, '');
+  const endpoint=`${normalized}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  return {
+    url: endpoint,
+    body: {
+      systemInstruction: { role: 'system', parts: [{ text: String(system || '') }] },
+      contents: [{ role: 'user', parts: [{ text: String(user || '') }] }]
+    }
+  };
+}
+
+export function extractGeminiText(payload) {
+  const candidate = payload?.candidates?.[0];
+  const parts = candidate?.content?.parts ?? [];
+  const text = parts.map(part => typeof part?.text === 'string' ? part.text : '').join('')
+    || payload?.output_text
+    || payload?.text
+    || candidate?.outputText
+    || '';
+  return String(text || '').trim();
+}
+
 const b64u=x=>Buffer.from(x).toString("base64url");
 function passwordHash(password){
  const salt=crypto.randomBytes(16);
@@ -136,12 +160,19 @@ async function generate(x){
  const profile=profileFor(x.platform,x.task),lang=x.language==="ar"?"Arabic":"the user's requested language";
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
  const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\\nPROFILE: "+profile+"\\nLANGUAGE: "+lang+"\\nNATIVE PROMPT RULES: "+rule+"\\nNever mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
- const user="USER IDEA:\\n"+x.idea+"\\n\\nTASK TYPE:\\n"+(x.task||"General");
- let payload={model:AI_MODEL,instructions:system,input:user};
+ const user="USER IDEA:\\n"+x.idea+"\\n\\nTASK TYPE:\\n"+(x.task||"General"); const provider=String(process.env.AI_PROVIDER||"gemini").toLowerCase(); let payload={model:AI_MODEL,instructions:system,input:user};
  if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
- const r=await fetch(AI_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(payload)});
- const t=await r.text();if(!r.ok)throw new Error("provider_http_"+r.status);
- let d=JSON.parse(t),out=d.output_text||d?.choices?.[0]?.message?.content||"";
+ let requestUrl=AI_API_URL;
+ let requestBody=payload;
+ if(provider==="gemini"){
+  const gemini=buildGeminiRequest({apiUrl:AI_API_URL,apiKey:AI_API_KEY,model:AI_MODEL,system,user});
+  requestUrl=gemini.url;
+  requestBody=gemini.body;
+ }
+ const r=await fetch(requestUrl,{method:"POST",headers:provider==="gemini"?{"Content-Type":"application/json"}:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(requestBody)});
+ const t=await r.text();if(!r.ok){let error=t||"provider_http_"+r.status;try{const parsed=JSON.parse(t);error=parsed?.error?.message||parsed?.message||error;}catch(e){}throw new Error(error);} 
+ let d=JSON.parse(t),out="";
+ if(provider==="gemini")out=extractGeminiText(d); else out=d.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
  if(!out)throw new Error("provider_no_output");
  const prompt=out.trim();

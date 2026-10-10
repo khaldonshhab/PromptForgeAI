@@ -358,17 +358,18 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         }).show();
     }
 
+    private String backendBase(){
+        String saved=s.get("backend_url","").trim();
+        return saved.isEmpty() ? "https://promptforgeai-backend.onrender.com" : saved.replaceAll("/$", "");
+    }
+
     private void generate(String idea){
-        String base="https://promptforge-backend-2p4q.onrender.com";
-        if(base.isEmpty()){
-            local(idea);
-        }else{
-            toast(tr("جار التوليد...","Generating..."));
-            new RemotePromptClient().generate(base,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
-                if(ok){last=val;s.add("history",last);result();}
-                else{local(idea);}
-            }));
-        }
+        String base=backendBase();
+        toast(tr("جار التوليد...","Generating..."));
+        new RemotePromptClient().generate(base,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
+            if(ok){last=val;s.add("history",last);result();}
+            else{toast(tr("فشل التوليد: ","Generation failed: ")+val);}
+        }));
     }
 
     private void local(String idea){
@@ -527,7 +528,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,16);
         TextView login=button(tr("دخول","Sign in"),true);
         login.setOnClickListener(v->{
-            String base="https://promptforge-backend-2p4q.onrender.com";
+            String base=backendBase();
             String u=user.getText().toString().trim(), p=pass.getText().toString();
             if(u.isEmpty()||p.isEmpty()){toast(tr("أدخل اسم المستخدم وكلمة المرور","Enter username and password"));return;}
             login.setEnabled(false);
@@ -564,7 +565,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
                 EditText np=editor("كلمة المرور الجديدة (8 أحرف على الأقل)","New password (8+ characters)",1); np.setSingleLine(true); np.setInputType(0x00000081);
                 new AlertDialog.Builder(this).setTitle(tr("تعديل الحساب","Edit account")).setView(np).setPositiveButton(tr("حفظ","Save"),(d,w)->{
                     String pass=np.getText().toString(); if(pass.length()<8){toast(tr("كلمة المرور يجب أن تكون 8 أحرف على الأقل","Password must be at least 8 characters"));return;}
-                    String base="https://promptforge-backend-2p4q.onrender.com"; change.setEnabled(false);
+                    String base=backendBase(); change.setEnabled(false);
                     new RemotePromptClient().updatePassword(base,s.accountToken(),pass,(ok,val)->runOnUiThread(()->{change.setEnabled(true);if(!ok){toast(tr("تعذر تعديل الحساب","Could not update account"));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",s.accountUser()),j.optString("token",s.accountToken()));toast(tr("تم تعديل كلمة المرور","Password updated"));}catch(Exception e){toast(tr("تم التعديل","Updated"));}}));
                 }).setNegativeButton(tr("إلغاء","Cancel"),null).show();
             });
@@ -582,7 +583,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         EditText pass=editor("كلمة المرور","Password",1); pass.setSingleLine(true); pass.setInputType(0x00000081); r.addView(pass,new LinearLayout.LayoutParams(-1,dp(56)));
         addGap(r,10);
         TextView login=button(tr("تسجيل الدخول","Sign in"),true);
-        login.setOnClickListener(v->{String base="https://promptforge-backend-2p4q.onrender.com";if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(false);toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});
+        login.setOnClickListener(v->{String base=backendBase();if(base.isEmpty()){toast(tr("ضع رابط الخادم أولاً من الإعدادات.","Set the backend URL in Settings first."));return;}login.setEnabled(false);new RemotePromptClient().login(base,user.getText().toString().trim(),pass.getText().toString(),(ok,val)->runOnUiThread(()->{login.setEnabled(true);if(!ok){toast(tr("اسم المستخدم أو كلمة المرور غير صحيحين.","Invalid username or password."));return;}try{org.json.JSONObject j=new org.json.JSONObject(val);s.account(j.optString("username",""),j.optString("token",""));s.accountPremium(false);toast(tr("تم تسجيل الدخول وتفعيل الحساب.","Signed in and account activated."));home();}catch(Exception e){toast(tr("تعذر قراءة استجابة الخادم.","Invalid server response."));}}));});
         r.addView(login,new LinearLayout.LayoutParams(-1,dp(58)));
         showRoot(scroll(r));
     }
