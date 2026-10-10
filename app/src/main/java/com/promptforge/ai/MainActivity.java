@@ -99,23 +99,34 @@ public class MainActivity extends Activity {
     private TextView button(String value,boolean primary){
         TextView b=new TextView(this);
         b.setText(bidi(value));
-        b.setTextSize(16);
+        b.setTextSize(15);
         b.setTextColor(WHITE);
         b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         b.setGravity(Gravity.CENTER);
         b.setIncludeFontPadding(true);
         b.setClickable(true);
         b.setFocusable(true);
-        b.setPadding(dp(12),0,dp(12),0);
-        b.setBackground(primary
-            ? new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{BLUE,PURPLE})
-            : rounded(PANEL2,BORDER,18));
+        b.setPadding(dp(14),0,dp(14),0);
+        if(primary){
+            GradientDrawable g=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.rgb(17,178,239),Color.rgb(91,76,245),Color.rgb(139,73,255)});
+            g.setCornerRadius(dp(18));
+            g.setStroke(dp(1),Color.argb(100,220,239,255));
+            b.setBackground(g);
+            b.setElevation(dp(4));
+        }else{
+            b.setBackground(rounded(Color.rgb(12,22,46),Color.rgb(49,70,120),18));
+            b.setElevation(dp(1));
+        }
+        b.setLetterSpacing(0.01f);
         return b;
     }
 
     private GradientDrawable rounded(int fill,int stroke,int radius){
-        GradientDrawable d=new GradientDrawable();
-        d.setColor(fill);
+        GradientDrawable d=new GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{fill,Color.rgb(Math.max(0,Color.red(fill)-2),Math.max(0,Color.green(fill)-2),Math.max(0,Color.blue(fill)-1))}
+        );
         d.setCornerRadius(dp(radius));
         if(stroke!=0)d.setStroke(dp(1),stroke);
         return d;
@@ -146,11 +157,19 @@ public class MainActivity extends Activity {
 
     private FrameLayout card(String icon,String arTitle,String enTitle,String arDesc,String enDesc,View.OnClickListener click){
         FrameLayout box=new FrameLayout(this);
-        box.setBackground(rounded(PANEL,BORDER,20));
+        box.setBackground(rounded(Color.rgb(14,25,53),Color.rgb(44,64,111),22));
         box.setClickable(true);
         box.setFocusable(true);
         box.setOnClickListener(click);
         box.setPadding(dp(16),dp(8),dp(16),dp(8));
+        box.setElevation(dp(3));
+        if(Build.VERSION.SDK_INT>=23){
+            box.setForeground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(Color.argb(32,90,190,255)),
+                null,
+                rounded(Color.WHITE,0,22)
+            ));
+        }
 
         LinearLayout texts=new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
@@ -167,9 +186,10 @@ public class MainActivity extends Activity {
         if(ar()) tx.rightMargin=end; else tx.leftMargin=end;
         box.addView(texts,tx);
 
-        TextView ic=text(icon,28,BLUE,true);
+        TextView ic=text(icon,27,BLUE,true);
         ic.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(56),dp(60));
+        ic.setBackground(rounded(Color.rgb(8,36,66),Color.rgb(34,104,157),17));
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(54),dp(54));
         ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
         box.addView(ic,ip);
         return box;
@@ -261,15 +281,38 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         langBtn.setOnClickListener(v->languageDialog());
         r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
 
-        addGap(r,4);
-        TextView hero=text(tr("حوّل فكرتك إلى برومبت احترافي","Turn your idea into a professional prompt"),22,WHITE,true);
-        hero.setGravity(ar()?Gravity.RIGHT:Gravity.LEFT);
-        r.addView(hero,new LinearLayout.LayoutParams(-1,dp(48)));
-        TextView sub=text(tr("أنشئ برومبتات مخصصة لأدوات الذكاء الاصطناعي المختلفة","Create prompts tailored to different AI tools"),14,MUTED,false);
-        r.addView(sub,new LinearLayout.LayoutParams(-1,dp(48)));
+        addGap(r,8);
+        LinearLayout heroBox=new LinearLayout(this);
+        heroBox.setOrientation(LinearLayout.VERTICAL);
+        heroBox.setPadding(dp(18),dp(18),dp(18),dp(18));
+        heroBox.setBackground(new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            new int[]{Color.rgb(14,47,82),Color.rgb(31,31,78),Color.rgb(35,20,65)}
+        ));
+        ((GradientDrawable)heroBox.getBackground()).setCornerRadius(dp(24));
+        ((GradientDrawable)heroBox.getBackground()).setStroke(dp(1),Color.rgb(48,91,151));
+        heroBox.setElevation(dp(5));
 
-        addGap(r,12);
-        addGap(r,10);
+        TextView eyebrow=text(tr("استوديو الذكاء الاصطناعي","AI PROMPT STUDIO"),11,BLUE,true);
+        eyebrow.setLetterSpacing(0.12f);
+        eyebrow.setTextDirection(View.TEXT_DIRECTION_LTR);
+        heroBox.addView(eyebrow,new LinearLayout.LayoutParams(-1,dp(24)));
+
+        TextView hero=text(tr("حوّل فكرتك إلى برومبت احترافي","Turn your idea into a professional prompt"),23,WHITE,true);
+        hero.setGravity(ar()?Gravity.RIGHT:Gravity.LEFT);
+        hero.setLineSpacing(dp(2),1.02f);
+        heroBox.addView(hero,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        TextView sub=text(tr("نتائج مصممة لأدوات الذكاء الاصطناعي التي تختارها","Prompts tailored to the AI tool you choose"),14,Color.rgb(195,207,232),false);
+        sub.setMaxLines(3);
+        heroBox.addView(sub,new LinearLayout.LayoutParams(-1,dp(44)));
+        r.addView(heroBox,new LinearLayout.LayoutParams(-1,dp(156)));
+
+        addGap(r,18);
+        TextView section=text(tr("مساحة العمل","YOUR WORKSPACE"),12,MUTED,true);
+        section.setLetterSpacing(0.08f);
+        r.addView(section,new LinearLayout.LayoutParams(-1,dp(28)));
+        addGap(r,4);
         r.addView(card("✦","إنشاء برومبت","Create Prompt","حوّل الفكرة إلى برومبت جاهز","Turn an idea into a ready prompt",v->create()),new LinearLayout.LayoutParams(-1,dp(86)));
         addGap(r,10);
         r.addView(card("✎","تحسين برومبت","Improve Prompt","حسّن أي برومبت موجود","Upgrade any existing prompt",v->improve()),new LinearLayout.LayoutParams(-1,dp(86)));
@@ -522,7 +565,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         r.setGravity(Gravity.CENTER_HORIZONTAL);
         addGap(r,6);
         FrameLayout top=new FrameLayout(this);
-        TextView brand=text("PromptForge AI",25,WHITE,true);
+        TextView brand=text("PromptForge AI",27,WHITE,true);
         brand.setGravity(Gravity.CENTER);
         brand.setTextDirection(View.TEXT_DIRECTION_LTR);
         FrameLayout.LayoutParams brandParams=new FrameLayout.LayoutParams(-1,dp(54));
@@ -535,11 +578,16 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         top.addView(langBtn,lp);
         langBtn.setOnClickListener(v->languageDialog());
         r.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));
-        addGap(r,24);
-        TextView head=text(tr("تسجيل الدخول","Sign in"),28,WHITE,true);
+        addGap(r,18);
+        TextView emblem=text("✦",26,BLUE,true);
+        emblem.setGravity(Gravity.CENTER);
+        emblem.setBackground(rounded(Color.rgb(10,39,70),Color.rgb(35,112,169),24));
+        r.addView(emblem,new LinearLayout.LayoutParams(dp(64),dp(64)));
+        addGap(r,12);
+        TextView head=text(tr("أهلاً بعودتك","Welcome back"),28,WHITE,true);
         head.setGravity(Gravity.CENTER);
         r.addView(head,new LinearLayout.LayoutParams(-1,dp(48)));
-        TextView sub=text(tr("أدخل بيانات حسابك للمتابعة","Enter your account details to continue"),14,MUTED,false);
+        TextView sub=text(tr("سجّل الدخول للمتابعة إلى مساحة عملك","Sign in to continue to your workspace"),14,MUTED,false);
         sub.setGravity(Gravity.CENTER);
         r.addView(sub,new LinearLayout.LayoutParams(-1,dp(40)));
         addGap(r,18);
