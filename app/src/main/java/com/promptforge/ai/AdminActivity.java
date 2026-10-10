@@ -8,7 +8,7 @@ import android.webkit.WebViewClient;
 import android.net.Uri;
 
 public class AdminActivity extends Activity {
-    private static final String DEFAULT_BACKEND_URL = "https://promptforgeai-backend.onrender.com";
+    private static final String DEFAULT_BACKEND_URL = "https://promptforge-backend-2p4q.onrender.com";
     private static final String DEFAULT_ADMIN_URL = DEFAULT_BACKEND_URL + "/admin";
 
     @Override protected void onCreate(Bundle savedInstanceState) {
