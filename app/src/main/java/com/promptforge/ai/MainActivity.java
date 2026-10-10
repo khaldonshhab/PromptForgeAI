@@ -620,7 +620,15 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
         addGap(r,8);
 
         TextView test=button(tr("اختبار الاتصال","Test connection"),false);
-        test.setOnClickListener(v->new RemotePromptClient().health(url.getText().toString().trim(),(ok,msg)->runOnUiThread(()->toast(ok?tr("الخادم يعمل ✅","Backend healthy ✅"):tr("فشل الاتصال","Connection failed")))));
+        test.setOnClickListener(v->new RemotePromptClient().health(url.getText().toString().trim(),(ok,msg)->runOnUiThread(()->{
+            String detail=msg;
+            try{
+                org.json.JSONObject status=new org.json.JSONObject(msg);
+                org.json.JSONArray missing=status.optJSONArray("missing");
+                if(missing!=null&&missing.length()>0)detail=missing.join(", ");
+            }catch(Exception ignored){}
+            toast(ok?tr("الخادم وإعدادات Gemini موجودة","Backend and Gemini settings are present"):tr("فشل الاتصال أو إعداد Gemini: ","Backend/Gemini configuration failed: ")+detail);
+        })));
         r.addView(test,new LinearLayout.LayoutParams(-1,dp(58)));
         addGap(r,12);
 
