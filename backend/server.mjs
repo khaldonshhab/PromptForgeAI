@@ -29,6 +29,14 @@ export function buildGeminiRequest({ apiUrl, apiKey, model, system, user }) {
   };
 }
 
+
+export function buildGeminiModelUrl({ apiUrl, apiKey, model }) {
+  const base=String(apiUrl||"").replace(/\/+$/,'');
+  const withoutResource=base.replace(/\/models(?:\/.*)?$/,'');
+  const versioned=/\/v1(?:beta)?$/.test(withoutResource) ? withoutResource : withoutResource+"/v1beta";
+  return versioned+"/models/"+encodeURIComponent(model)+"?key="+encodeURIComponent(apiKey);
+}
+
 export function extractGeminiText(payload) {
   const candidate = payload?.candidates?.[0];
   const parts = candidate?.content?.parts ?? [];
@@ -199,6 +207,24 @@ const server=http.createServer(async(req,res)=>{
   if(!AI_API_KEY)missing.push("AI_API_KEY");
   if(!AI_MODEL)missing.push("AI_MODEL");
   return send(res,200,{ok:true,configured:missing.length===0,provider:AI_PROVIDER,model:AI_MODEL||null,missing});
+ }
+ if(req.method==="GET"&&req.url==="/health/ai"){
+  const missing=[];
+  if(!AI_API_URL)missing.push("AI_API_URL");
+  if(!AI_API_KEY)missing.push("AI_API_KEY");
+  if(!AI_MODEL)missing.push("AI_MODEL");
+  if(missing.length)return send(res,503,{ok:false,configured:false,provider:AI_PROVIDER,model:AI_MODEL||null,missing});
+  if(AI_PROVIDER!=="gemini")return send(res,501,{ok:false,configured:true,provider:AI_PROVIDER,error:"provider_connection_test_not_supported"});
+  try{
+   const r=await fetch(buildGeminiModelUrl({apiUrl:AI_API_URL,apiKey:AI_API_KEY,model:AI_MODEL}),{signal:AbortSignal.timeout(8000)});
+   const t=await r.text();
+   if(!r.ok){
+    let message="gemini_connection_failed";
+    try{const parsed=JSON.parse(t);message=parsed?.error?.message||message;}catch(e){}
+    return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:message});
+   }
+   return send(res,200,{ok:true,configured:true,connected:true,provider:AI_PROVIDER,model:AI_MODEL});
+  }catch(e){return send(res,502,{ok:false,configured:true,connected:false,provider:AI_PROVIDER,model:AI_MODEL,error:e.name==="TimeoutError"?"ai_connection_timeout":"ai_connection_failed"});}
  }
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}
  if(req.method==="PATCH"&&req.url==="/v1/auth/account")try{const p=auth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p||!p.u)return send(res,401,{error:"unauthorized"});const x=await body(req),found=USERS.find(v=>String(v.username||"")===p.u);if(!found||found.enabled===false)return send(res,401,{error:"account_disabled"});if(typeof x.password!=="string"||x.password.length<8)return send(res,400,{error:"password_too_short"});found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true,token:signToken(found),username:found.username});}catch(e){return send(res,400,{error:e.message||"account_update_failed"});}
