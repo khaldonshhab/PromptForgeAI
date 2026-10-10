@@ -3,7 +3,12 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
+const PORT=Number(process.env.PORT||8787);
+const AI_PROVIDER=String(process.env.AI_PROVIDER||"gemini").toLowerCase();
+const AI_API_URL=process.env.AI_API_URL||(AI_PROVIDER==="gemini"?"https://generativelanguage.googleapis.com/v1beta":"");
+const AI_API_KEY=process.env.AI_API_KEY||"";
+const AI_MODEL=process.env.AI_MODEL||(AI_PROVIDER==="gemini"?"gemini-2.5-flash":"");
+const AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
 fs.mkdirSync(DATA_DIR,{recursive:true});
 let USERS=[];
@@ -162,7 +167,7 @@ async function generate(x){
  const profile=profileFor(x.platform,x.task);
  const rule=RULES[profile]||"Understand the intent, preserve it, add only relevant constraints, and define a useful output format.";
  const system="You are PromptForge's platform compiler. Write the prompt that the TARGET platform should receive; do not answer the user's task yourself. TARGET PLATFORM: "+x.platform+"\nPROFILE: "+profile+"\nOUTPUT LANGUAGE: English\nNATIVE PROMPT RULES: "+rule+"\nThe user's idea may be written in any language; understand it directly without translating it as a separate step. Always write the finished prompt in English. Never output a translation or explanation. Never mention PromptForge, this compiler, or other platforms. Do not copy a generic template. Return only the finished prompt.";
- const user="USER IDEA:\n"+x.idea+"\n\nTASK TYPE:\n"+(x.task||"General"); const provider=String(process.env.AI_PROVIDER||"gemini").toLowerCase(); let payload={model:AI_MODEL,instructions:system,input:user};
+ const user="USER IDEA:\n"+x.idea+"\n\nTASK TYPE:\n"+(x.task||"General"); const provider=AI_PROVIDER; let payload={model:AI_MODEL,instructions:system,input:user};
  if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  let requestUrl=AI_API_URL;
  let requestBody=payload;
@@ -186,9 +191,15 @@ async function generate(x){
  return{prompt,profile};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(fileURLToPath(import.meta.url))){
-http.createServer(async(req,res)=>{
+const server=http.createServer(async(req,res)=>{
  if(req.method==="OPTIONS"){res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type"});return res.end();}
- if(req.method==="GET"&&req.url==="/health")return send(res,200,{ok:true,configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL)});
+ if(req.method==="GET"&&req.url==="/health"){
+  const missing=[];
+  if(!AI_API_URL)missing.push("AI_API_URL");
+  if(!AI_API_KEY)missing.push("AI_API_KEY");
+  if(!AI_MODEL)missing.push("AI_MODEL");
+  return send(res,200,{ok:true,configured:missing.length===0,provider:AI_PROVIDER,model:AI_MODEL||null,missing});
+ }
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{const x=await body(req);const u=String(x.username||"").trim();const pass=String(x.password||"");const found=USERS.find(v=>String(v.username||"")===u&&v.enabled!==false&&verifyPassword(pass,v.passwordHash));if(!found)return send(res,401,{error:"invalid_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:signToken(found),premium:!!found.premium,username:found.username});}catch(e){return send(res,400,{error:e.message||"login_failed"});}
  if(req.method==="PATCH"&&req.url==="/v1/auth/account")try{const p=auth(String(req.headers.authorization||"").replace(/^Bearer\\s+/i,""));if(!p||!p.u)return send(res,401,{error:"unauthorized"});const x=await body(req),found=USERS.find(v=>String(v.username||"")===p.u);if(!found||found.enabled===false)return send(res,401,{error:"account_disabled"});if(typeof x.password!=="string"||x.password.length<8)return send(res,400,{error:"password_too_short"});found.passwordHash=passwordHash(x.password);saveUsers();return send(res,200,{ok:true,token:signToken(found),username:found.username});}catch(e){return send(res,400,{error:e.message||"account_update_failed"});}
  if(req.method==="POST"&&req.url==="/admin/login")try{const x=await body(req);if(String(x.username||"")!==ADMIN_USER||!ADMIN_PASSWORD_HASH||!verifyPassword(String(x.password||""),ADMIN_PASSWORD_HASH))return send(res,401,{error:"invalid_admin_credentials"});if(!AUTH_SECRET)return send(res,503,{error:"auth_not_configured"});return send(res,200,{token:adminToken(),username:ADMIN_USER});}catch(e){return send(res,400,{error:e.message||"admin_login_failed"});}
@@ -199,5 +210,8 @@ http.createServer(async(req,res)=>{
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
  if(req.method==="POST"&&req.url==="/v1/prompt")try{const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});return send(res,200,await generate(x));}catch(e){return send(res,500,{error:e.message||"generation_failed"});}
  send(res,404,{error:"not_found"});
-}).listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
+});
+if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ server.listen(PORT,"0.0.0.0",()=>console.log("PromptForge backend on "+PORT));
+}
 }
