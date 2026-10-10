@@ -367,7 +367,7 @@ brp.leftMargin=dp(102); brp.rightMargin=dp(102);
     private void generate(String idea){
         String base=backendBase();
         toast(tr("جار التوليد...","Generating..."));
-        new RemotePromptClient().generate(base,idea,sel,task,lang,s.accountToken(),(ok,val)->runOnUiThread(()->{
+        new RemotePromptClient().generate(base,idea,sel,task,s.accountToken(),(ok,val)->runOnUiThread(()->{
             if(ok){last=val;s.add("history",last);result();}
             else{toast(tr("فشل التوليد: ","Generation failed: ")+val);}
         }));
