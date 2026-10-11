@@ -1,1 +1,14 @@
-{"name":"promptforge-backend","version":"1.0.0","private":true,"type":"module","engines":{"node":">=20"},"dependencies":{},"scripts":{"start":"node server.mjs"}}
+{
+  "name": "promptforge-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test server.test.mjs"
+  }
+}
