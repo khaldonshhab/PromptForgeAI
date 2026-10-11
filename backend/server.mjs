@@ -260,8 +260,6 @@ async function generate(x){
   return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
  }
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
- const requestedTask=String(x.task||"General").trim();
- const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
  const knowledge=await getPromptKnowledge();
