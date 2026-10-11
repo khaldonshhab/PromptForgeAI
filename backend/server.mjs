@@ -203,13 +203,48 @@ function localPrompt(idea,platform,task){
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d?.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
+ if(!out&&Array.isArray(d?.candidates)){
+  for(const candidate of d.candidates){
+   const parts=candidate?.content?.parts;
+   if(Array.isArray(parts))for(const part of parts)if(typeof part?.text==="string")out+=part.text;
+  }
+ }
  return String(out||"").trim();
 }
 async function callProvider(system,user){
- let payload={model:AI_MODEL,instructions:system,input:user};
- if(process.env.AI_API_MODE==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
- const r=await fetch(AI_API_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI_API_KEY},body:JSON.stringify(payload)});
- const t=await r.text();
+ let mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
+ let endpoint=AI_API_URL;
+ const isGoogleEndpoint=/generativelanguage\.googleapis\.com/i.test(endpoint);
+ if(!mode&&isGoogleEndpoint)mode="gemini";
+ const headers={"Content-Type":"application/json"};
+ let payload;
+ if(mode==="gemini"){
+  headers["x-goog-api-key"]=AI_API_KEY;
+  if(!isGoogleEndpoint){
+   endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
+  }else if(!/\/models\/[^/]+:generateContent(?:\?|$)/i.test(endpoint)){
+   endpoint=endpoint.replace(/\/$/,"")+"/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
+  }
+  payload={
+   systemInstruction:{parts:[{text:system}]},
+   contents:[{role:"user",parts:[{text:user}]}],
+   generationConfig:{temperature:0.4}
+  };
+ }else{
+  headers.Authorization="Bearer "+AI_API_KEY;
+  payload={model:AI_MODEL,instructions:system,input:user};
+  if(mode==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
+ }
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),30000);
+ let r,t;
+ try{
+  r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
+  t=await r.text();
+ }catch(e){
+  if(e?.name==="AbortError")throw new Error("provider_timeout");
+  throw new Error("provider_network_error");
+ }finally{clearTimeout(timeout);}
  if(!r.ok)throw new Error("provider_http_"+r.status);
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
  const out=extractProviderText(d);
@@ -217,12 +252,8 @@ async function callProvider(system,user){
  return out;
 }
 async function generate(x){
- if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
-  const inferredTask=String(x.task||"General").trim()||"General";
-  let sourceIdea=String(x.idea||"").trim();
-  return{prompt:localPrompt(sourceIdea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
- }
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
+ if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
  const requestedTask=String(x.task||"General").trim();
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  const profile=profileFor(x.platform,inferredTask);
@@ -249,7 +280,7 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile,mode:"local_fallback"};
+  throw error;
  }
  if(isCompilerEcho(prompt)){
   const retrySystem=[
@@ -262,7 +293,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
+ if(isCompilerEcho(prompt))throw new Error("provider_invalid_output");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
@@ -304,6 +335,6 @@ http.createServer(async(req,res)=>{
  if(req.method==="POST"&&req.url.startsWith("/admin/users/")&&req.url.endsWith("/reset-device"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length,-"/reset-device".length));const found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});await updateUserRecord(u,{deviceIdHash:null});found.deviceIdHash=null;return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"reset_device_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));if(!USERS.some(v=>v.username===u))return send(res,404,{error:"user_not_found"});await deleteUserRecord(u);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){console.error("prompt_generation_failed",e?.stack||e?.message||String(e));return send(res,500,{error:"generation_failed"});}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){const reason=String(e?.message||"");console.error("prompt_generation_failed",reason);let status=502,code="provider_unavailable";if(reason==="provider_not_configured"){status=503;code=reason;}else if(reason==="provider_invalid_output"||reason==="provider_no_output"||reason==="provider_invalid_json"){status=502;code="provider_invalid_output";}else if(reason==="provider_timeout"){status=504;code=reason;}else if(reason==="provider_http_401"||reason==="provider_http_403"){status=502;code="provider_auth_failed";}else if(reason==="provider_http_429"){status=503;code="provider_rate_limited";}else if(reason==="platform_required"){status=400;code=reason;}return send(res,status,{error:code});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e),"DB_URL="+PF_DB_URL);}console.log("PromptForge backend on "+PORT);});
