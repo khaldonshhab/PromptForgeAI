@@ -220,9 +220,10 @@ async function callProvider(system,user){
  let payload;
  if(mode==="gemini"){
   headers["x-goog-api-key"]=AI_API_KEY;
-  if(!isGoogleEndpoint){
+  const localTestEndpoint=/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/i.test(endpoint);
+  if(!isGoogleEndpoint&&!localTestEndpoint){
    endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
-  }else if(!/\/models\/[^/]+:generateContent(?:\?|$)/i.test(endpoint)){
+  }else if(isGoogleEndpoint&&!/\/models\/[^/]+:generateContent(?:\?|$)/i.test(endpoint)){
    endpoint=endpoint.replace(/\/$/,"")+"/models/"+encodeURIComponent(AI_MODEL)+":generateContent";
   }
   payload={
