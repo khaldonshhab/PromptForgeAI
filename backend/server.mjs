@@ -244,7 +244,13 @@ async function generate(x){
   "Adapt syntax and structure to the requested tool. For visual tools, prioritize subject, environment, composition, camera/perspective, lighting, materials, color and mood. For coding tools, preserve repository context and request concrete implementation, affected files and verification. For research tools, require evidence without inventing citations.",
   "The final prompt must be useful as a standalone prompt when copied into the target AI. Specificity, logical structure and actionable instructions are more important than decorative wording.",
  ].join("\n");
- let prompt=await callProvider(system,user);
+ let prompt;
+ try {
+  prompt=await callProvider(system,user);
+ } catch(error) {
+  console.error("prompt_provider_unavailable",error?.message||String(error));
+  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile,mode:"local_fallback"};
+ }
  if(isCompilerEcho(prompt)){
   const retrySystem=[
    "Write the final user-facing prompt now.",
