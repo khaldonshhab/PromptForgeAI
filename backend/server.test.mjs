@@ -78,18 +78,22 @@ async function startBackend(extraEnv = {}) {
   };
 }
 
-async function postPrompt(base, idea = "صمّم صورة لمسرح مهجور بعد نهاية العالم") {
+async function postPrompt(base, idea = "صمّم صورة لمسرح مهجور بعد نهاية العالم", platform = "Gemini", task = "Image") {
   return fetch(base + "/v1/prompt", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + tokenFor()
     },
-    body: JSON.stringify({ idea, platform: "Gemini", task: "Image", language: "ar" })
+    body: JSON.stringify({ idea, platform, task, language: "ar" })
   });
 }
 
-test("Gemini mode sends the native request and returns the model's finished prompt", async t => {
+function assertNoInternalScaffold(prompt) {
+  assert.doesNotMatch(prompt, /\b(?:role\s*(?:\/|:|[-–—]|and)\s*expertise|objective\s*(?:\/|:|[-–—]|and)\s*task|target\s*(?:\/|:|[-–—]|and)\s*context|required\s+approach|tool[\s-]+specific\s+guidance|working\s+rules|output\s*(?:\/|:|[-–—]|and)\s*acceptance\s+criteria)\b/i);
+}
+
+test("Gemini returns an English image prompt tailored to an abandoned post-apocalyptic theatre", async t => {
   let captured = null;
   const provider = http.createServer(async (req, res) => {
     let body = "";
@@ -98,7 +102,7 @@ test("Gemini mode sends the native request and returns the model's finished prom
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       candidates: [{
-        content: { parts: [{ text: "ROLE / EXPERTISE\nAct as a cinematic visual director.\n\nOBJECTIVE\nCreate an abandoned theatre after the apocalypse." }] }
+        content: { parts: [{ text: "Create a cinematic image of an abandoned theatre after the apocalypse, with torn velvet curtains, a collapsed balcony, dust-filled shafts of light, and nature reclaiming the stage. Use a dramatic wide composition, muted ash tones, and one warm practical light to establish a haunting but hopeful mood." }] }
       }]
     }));
   });
@@ -121,14 +125,16 @@ test("Gemini mode sends the native request and returns the model's finished prom
   const response = await postPrompt(backend.base);
   const data = await response.json();
   assert.equal(response.status, 200, JSON.stringify(data));
-  assert.match(data.prompt, /cinematic visual director/i);
-  assert.doesNotMatch(data.prompt, /TARGET TOOL|TOOL-SPECIFIC GUIDANCE/i);
+  assert.match(data.prompt, /cinematic image of an abandoned theatre after the apocalypse/i);
+  assert.match(data.prompt, /torn velvet curtains/i);
+  assert.match(data.prompt, /nature reclaiming the stage/i);
+  assertNoInternalScaffold(data.prompt);
   assert.equal(captured.headers["x-goog-api-key"], "integration-test-key");
   assert.equal(captured.body.contents[0].parts[0].text.includes("صمّم صورة"), true);
   assert.equal(captured.body.systemInstruction.parts[0].text.includes("entirely in English"), true);
 });
 
-test("provider authentication failure returns an explicit error, never a local template", async t => {
+test("provider authentication failure uses a finished local fallback, never a template", async t => {
   const provider = http.createServer((req, res) => {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: { message: "invalid test key" } }));
@@ -148,20 +154,152 @@ test("provider authentication failure returns an explicit error, never a local t
     await new Promise(resolve => provider.close(resolve));
   });
 
-  const response = await postPrompt(backend.base);
+  const response = await postPrompt(backend.base, "Create a cinematic image of an abandoned theatre after the apocalypse", "Gemini", "Image");
   const data = await response.json();
-  assert.equal(response.status, 502);
-  assert.deepEqual(data, { error: "provider_auth_failed" });
-  assert.equal("prompt" in data, false);
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(data.mode, "local_fallback");
+  assert.match(data.prompt, /abandoned theatre after the apocalypse/i);
+  assertNoInternalScaffold(data.prompt);
 });
 
-test("missing provider configuration returns 503 instead of pretending to generate", async t => {
+test("missing Gemini configuration preserves a usable English local fallback", async t => {
+  const backend = await startBackend();
+  t.after(() => backend.stop());
+
+  const response = await postPrompt(backend.base, "Create an image of a quiet greenhouse at sunrise", "Gemini", "Image");
+  const data = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(data.mode, "local");
+  assert.match(data.prompt, /quiet greenhouse at sunrise/i);
+  assertNoInternalScaffold(data.prompt);
+});
+
+test("provider failure uses the local fallback without returning compiler instructions", async t => {
+  const provider = http.createServer((req, res) => {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: { message: "temporary provider outage" } }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+
+  const response = await postPrompt(backend.base, "Create a short research brief about urban tree canopies", "Gemini", "Research");
+  const data = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(data.mode, "local_fallback");
+  assert.match(data.prompt, /urban tree canopies/i);
+  assertNoInternalScaffold(data.prompt);
+});
+
+test("wrapped and multiline Gemini scaffold headings are retried and replaced with a finished fallback", async t => {
+  const scaffolds = [
+    "1. ROLE / EXPERTISE\nAct as a visual director.",
+    "ROLE / EXPERTISE — additional instructions\nCreate the requested image.",
+    "## TARGET / CONTEXT\nCreate the requested image.",
+    "**TOOL-SPECIFIC GUIDANCE:**\nUse the internal tool rules.",
+    "ROLE /\nEXPERTISE\nCreate the requested image.",
+    "OUTPUT / ACCEPTANCE\nCRITERIA — return the image prompt."
+  ];
+  let attempts = 0;
+  let currentScaffold = scaffolds[0];
+  const provider = http.createServer((req, res) => {
+    attempts++;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: currentScaffold }] } }]
+    }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+
+  for(const scaffold of scaffolds){
+    currentScaffold=scaffold;
+    attempts=0;
+    const response = await postPrompt(backend.base, "Create an image of a lighthouse in a winter storm", "Gemini", "Image");
+    const data = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(data));
+    assert.equal(attempts, 2, "the internal heading must trigger a retry");
+    assert.equal(data.mode, "local_fallback");
+    assert.match(data.prompt, /lighthouse in a winter storm/i);
+    assert.notEqual(data.prompt, scaffold);
+    assertNoInternalScaffold(data.prompt);
+  }
+});
+
+test("natural English mentions of role and context are not mistaken for scaffold", async t => {
+  const expected = "Explain the role of urban trees in the context of neighborhood cooling, using practical examples for city planners.";
+  let attempts = 0;
+  const provider = http.createServer((req, res) => {
+    attempts++;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: expected }] } }] }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+
+  const response = await postPrompt(backend.base, "Write about urban trees", "Gemini", "Research");
+  const data = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(attempts, 1);
+  assert.equal(data.prompt, expected);
+});
+
+test("local fallback changes its final prompt for the selected image tool", async t => {
+  const backend = await startBackend();
+  t.after(() => backend.stop());
+
+  const idea = "Create an image of a red bicycle beside a brick wall at dusk";
+  const midjourney = await (await postPrompt(backend.base, idea, "Midjourney", "Image")).json();
+  const stableDiffusion = await (await postPrompt(backend.base, idea, "Stable Diffusion", "Image")).json();
+  assert.notEqual(midjourney.prompt, stableDiffusion.prompt);
+  assert.match(midjourney.prompt, /Midjourney/i);
+  assert.match(stableDiffusion.prompt, /Positive Prompt/i);
+  assertNoInternalScaffold(midjourney.prompt);
+  assertNoInternalScaffold(stableDiffusion.prompt);
+});
+
+test("fallback returns a controlled error when it cannot preserve a non-English request in English", async t => {
   const backend = await startBackend();
   t.after(() => backend.stop());
 
   const response = await postPrompt(backend.base);
   const data = await response.json();
   assert.equal(response.status, 503);
-  assert.deepEqual(data, { error: "provider_not_configured" });
+  assert.deepEqual(data, { error: "fallback_unavailable" });
   assert.equal("prompt" in data, false);
 });
