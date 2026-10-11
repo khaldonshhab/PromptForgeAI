@@ -254,6 +254,11 @@ async function callProvider(system,user){
 }
 async function generate(x){
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
+ const requestedTask=String(x.task||"General").trim()||"General";
+ const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
+ if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
+  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
+ }
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
  const requestedTask=String(x.task||"General").trim();
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
@@ -281,7 +286,7 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  throw error;
+  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile,mode:"local_fallback"};
  }
  if(isCompilerEcho(prompt)){
   const retrySystem=[
@@ -294,7 +299,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))throw new Error("provider_invalid_output");
+ if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
