@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
+import {validateFinalPrompt} from "./prompt-validator.mjs";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=String(process.env.AI_API_URL||"").trim(),AI_API_KEY=String(process.env.AI_API_KEY||"").trim(),AI_MODEL=String(process.env.AI_MODEL||"").trim(),AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
 const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
@@ -283,11 +284,28 @@ async function generate(x){
   }
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
- if(prompt.length<20)throw new Error("provider_prompt_too_short");
- const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
- if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
- const sdMismatch=profile==="image-sd" && /--ar|--stylize|--chaos|--sref/i.test(prompt);
- if(sdMismatch)throw new Error("platform_syntax_mismatch_sd");
+ const validation=validateFinalPrompt(prompt,x.platform,profile);
+ if(!validation.ok){
+  const retrySystem=[
+   "Your previous draft failed final tool-specific validation.",
+   "Fix every issue below and return only the complete, ready-to-paste prompt. Do not explain the correction.",
+   "Validation issues: "+validation.issues.join(", "),
+   "For Midjourney, use only supported parameters, give every value-taking parameter a valid complete value, and put parameters at the end. Do not append an unfinished flag.",
+   "Do not guess undocumented settings or unsupported version/style values.",
+   "Selected tool: "+x.platform,
+   "Tool-specific guidance: "+native
+  ].join("\n");
+  try{prompt=await callProvider(retrySystem,user);}catch(error){
+   console.error("prompt_validation_retry_failed",error?.message||String(error));
+   throw error;
+  }
+ }
+ if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
+ const finalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ if(!finalValidation.ok){
+  console.error("prompt_final_validation_failed",finalValidation.issues.join(","));
+  throw new Error("provider_invalid_output");
+ }
  return{prompt,profile};
 }
 http.createServer(async(req,res)=>{
