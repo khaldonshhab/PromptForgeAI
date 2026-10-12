@@ -401,6 +401,14 @@ test("final prompt validator accepts complete supported Midjourney parameters an
     "gemini"
   );
   assert.equal(gemini.ok, true, gemini.issues.join(","));
+
+  const crossTool = validateFinalPrompt(
+    "Create an image of an abandoned theater with dramatic light and broken seats --ar 16:9",
+    "Gemini",
+    "gemini"
+  );
+  assert.equal(crossTool.ok, false);
+  assert.ok(crossTool.issues.includes("midjourney_syntax_in_other_tool"));
 });
 
 test("invalid Midjourney output is retried and only the validated final prompt is returned", async t => {
