@@ -93,7 +93,23 @@ function assertNoInternalScaffold(prompt) {
   assert.doesNotMatch(prompt, /\b(?:role\s*(?:\/|:|[-–—]|and)\s*expertise|objective\s*(?:\/|:|[-–—]|and)\s*task|target\s*(?:\/|:|[-–—]|and)\s*context|required\s+approach|tool[\s-]+specific\s+guidance|working\s+rules|output\s*(?:\/|:|[-–—]|and)\s*acceptance\s+criteria)\b/i);
 }
 
-test("health reports provider configuration status without exposing secret values", async t => {\n  const backend = await startBackend();\n  t.after(() => backend.stop());\n  const response = await fetch(backend.base + "/health");\n  const data = await response.json();\n  assert.equal(response.status, 200);\n  assert.equal(data.configured, false);\n  assert.deepEqual(data.aiConfiguration, {\n    urlConfigured: false,\n    keyConfigured: false,\n    modelConfigured: false,\n    mode: "gemini"\n  });\n  assert.equal(JSON.stringify(data).includes(SECRET), false);\n});\n\ntest("Gemini returns an English image prompt tailored to an abandoned post-apocalyptic theatre", async t => {
+test("health reports provider configuration status without exposing secret values", async t => {
+  const backend = await startBackend();
+  t.after(() => backend.stop());
+  const response = await fetch(backend.base + "/health");
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.configured, false);
+  assert.deepEqual(data.aiConfiguration, {
+    urlConfigured: false,
+    keyConfigured: false,
+    modelConfigured: false,
+    mode: "gemini"
+  });
+  assert.equal(JSON.stringify(data).includes(SECRET), false);
+});
+
+test("Gemini returns an English image prompt tailored to an abandoned post-apocalyptic theatre", async t => {
   let captured = null;
   const provider = http.createServer(async (req, res) => {
     let body = "";
