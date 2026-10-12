@@ -179,43 +179,6 @@ function isCompilerEcho(s){
   ||z.includes("internal context")
   ||z.includes("<internal_context");
 }
-function localPrompt(idea,platform,task){
- const s=String(idea||"").trim();
- const p=String(platform||"").trim();
- const t=String(task||"General").trim();
- if(!s||[s,p,t].some(value=>Array.from(value).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character))))return "";
- const profile=profileFor(p,t);
- const native=TOOL_GUIDANCE[p]||RULES[profile]||"Use the target tool's native conventions and avoid unsupported syntax.";
- const taskText=t.toLowerCase();
- const imageTask=profile.startsWith("image")||/image|visual|photo|picture/.test(taskText);
- const videoTask=profile==="video"||taskText.includes("video");
- const codingTask=profile==="coding"||taskText.includes("coding");
- const researchTask=profile==="research"||taskText.includes("research");
- const opening=imageTask
-  ?"Create a ready-to-use image-generation prompt for "+p+" from this request: \""+s+"\"."
-  :videoTask
-  ?"Create a ready-to-use video-generation prompt for "+p+" from this request: \""+s+"\"."
-  :codingTask
-  ?"Implement this request in the intended project using "+p+": \""+s+"\"."
-  :researchTask
-  ?"Research this question using "+p+" and prepare a useful, evidence-aware result: \""+s+"\"."
-  :"Use "+p+" to complete this request: \""+s+"\".";
- const execution=imageTask
-  ?"Make the requested subject and setting clear, with a deliberate composition, perspective, lighting, palette, atmosphere, and visual detail that support the user's intent."
-  :videoTask
-  ?"Define the subject's action, camera movement, setting, lighting, timing, continuity, and ending in a physically coherent sequence."
-  :codingTask
-  ?"Inspect the available project context, make the requested change within its existing architecture, handle relevant edge cases, and verify it with appropriate checks."
-  :researchTask
-  ?"Identify relevant evidence, distinguish established facts from inference, state uncertainty, and do not invent sources or citations."
-  :"Preserve the user's intent and important details, adding only useful constraints and a clear description of the requested result.";
- return [opening,execution,native,"Use only capabilities and controls supported by "+p+". Keep the result specific, coherent, and ready to use; do not add unrelated content or mention the prompt-generation process."].join(" ");
-}
-function localFallback(idea,platform,task,profile,mode){
- const prompt=localPrompt(idea,platform,task);
- if(!prompt||isCompilerEcho(prompt))throw new Error("fallback_unavailable");
- return{prompt,profile,mode};
-}
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d?.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
@@ -272,9 +235,7 @@ async function generate(x){
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
  const requestedTask=String(x.task||"General").trim()||"General";
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
- if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
-  return localFallback(x.idea,x.platform,inferredTask,profileFor(x.platform,inferredTask),"local");
- }
+ if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
  const knowledge=await getPromptKnowledge();
@@ -299,7 +260,7 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
+  throw error;
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character))){
   const retrySystem=[
@@ -312,10 +273,10 @@ async function generate(x){
   ].join("\n");
   try{prompt=await callProvider(retrySystem,user);}catch(error){
    console.error("prompt_provider_retry_failed",error?.message||String(error));
-   return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
+   throw error;
   }
  }
- if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
+ if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
