@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
 import {validateFinalPrompt} from "./prompt-validator.mjs";
+import {buildToolContract,validatePromptQuality} from "./tool-specialization.mjs";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=String(process.env.AI_API_URL||"").trim(),AI_API_KEY=String(process.env.AI_API_KEY||"").trim(),AI_MODEL=String(process.env.AI_MODEL||"").trim(),AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
 const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
@@ -239,6 +240,7 @@ async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
+ const toolContract=buildToolContract(x.platform,inferredTask,native);
  const knowledge=await getPromptKnowledge();
  const lang="English";
  const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+inferredTask+"</requested_task>\n<selected_tool>"+x.platform+"</selected_tool>";
@@ -247,6 +249,7 @@ async function generate(x){
   "TARGET TOOL (mandatory specialization): "+x.platform,
   "TASK TYPE: "+inferredTask,
   "TARGET-TOOL-SPECIFIC OPERATING GUIDANCE (apply this in the first generation, not only during retries): "+native,
+  toolContract,
   "PROFILE RULES: "+(RULES[profile]||"Use the selected tool's own workflow, capabilities, syntax and output conventions; do not copy another tool's syntax."),
   "The selected tool is not interchangeable with other tools. Shape the prompt around its actual workflow and expected input style. Preserve this distinction even when two tools share a broad category.",
   "Only include platform parameters, tags, control syntax, negative prompts, aspect ratios, model names, or feature claims when they are supported by the selected tool and materially useful. Never invent undocumented flags or settings. If an interface control is not prompt-controlled, do not pretend the prompt can set it.",
@@ -276,6 +279,7 @@ async function generate(x){
   "Do not mention PromptForge, the compiler, internal context, routing fields, knowledge-base instructions, or internal headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
    "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
+   toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
   try{prompt=await callProvider(retrySystem,user);}catch(error){
@@ -284,15 +288,19 @@ async function generate(x){
   }
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
- const validation=validateFinalPrompt(prompt,x.platform,profile);
+ const technicalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const qualityValidation=validatePromptQuality(prompt,x.platform,inferredTask);
+ const validation={ok:technicalValidation.ok&&qualityValidation.ok,issues:[...technicalValidation.issues,...qualityValidation.issues]};
  if(!validation.ok){
   const retrySystem=[
    "Your previous draft failed final tool-specific validation.",
    "Fix every issue below and return only the complete, ready-to-paste prompt. Do not explain the correction.",
    "Validation issues: "+validation.issues.join(", "),
    "For Midjourney, use only supported parameters, give every value-taking parameter a valid complete value, and put parameters at the end. Do not append an unfinished flag.",
+   "Also repair repetition, filler, internal scaffolding and foreign tool syntax. Add missing task-specific execution detail without inflating the prompt.",
    "Do not guess undocumented settings or unsupported version/style values.",
    "Selected tool: "+x.platform,
+   toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
   try{prompt=await callProvider(retrySystem,user);}catch(error){
@@ -301,7 +309,9 @@ async function generate(x){
   }
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
- const finalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const finalTechnicalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const finalQualityValidation=validatePromptQuality(prompt,x.platform,inferredTask);
+ const finalValidation={ok:finalTechnicalValidation.ok&&finalQualityValidation.ok,issues:[...finalTechnicalValidation.issues,...finalQualityValidation.issues]};
  if(!finalValidation.ok){
   console.error("prompt_final_validation_failed",finalValidation.issues.join(","));
   throw new Error("provider_invalid_output");
