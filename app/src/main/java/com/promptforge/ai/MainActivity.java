@@ -1282,10 +1282,7 @@ public class MainActivity extends Activity {
                 loginScreen();
                 return;
             }
-            last=PromptEngine.generate(idea,find(sel),task,false);
-            s.add("history",last);
-            result();
-            toast(tr("تعذر الوصول للخادم؛ تم استخدام المحرك المحلي","Server unavailable; used the local engine"));
+            toast(tr("تعذّر الاتصال بالذكاء الاصطناعي. تحقق من الاتصال وحاول مجدداً.","Could not connect to the AI server. Check your connection and try again."));
         }));
     }
 
