@@ -600,10 +600,7 @@ public class MainActivity extends Activity {
             if(i<3)addGap(r,8);
         }
 
-        addGap(r,12);
-        View all=wideAction(tr("كل المنصات والأدوات","All AI Platforms"),tr("تصفّح كامل الكتالوج — "+ps.size()+" أداة ومنصة","Browse the full catalog — "+ps.size()+" tools"),"grid",v->platforms());
-        r.addView(all,new LinearLayout.LayoutParams(-1,dp(68)));
-
+        // The Tools tab in bottom navigation is the single entry point for the full catalog.
         addGap(r,20);
         TextView recentHead=text(tr("المحادثات الأخيرة","Recent prompts"),18,WHITE,true);
         r.addView(recentHead,new LinearLayout.LayoutParams(-1,dp(30)));
@@ -898,7 +895,6 @@ public class MainActivity extends Activity {
         // Keep this menu focused on account actions; creation, tools and history
         // already have dedicated entry points in the home screen and bottom navigation.
         addMenuRow(box,tr("حسابي","My Account"),"user",v->{d.dismiss();account();});
-        addMenuRow(box,tr("الإعدادات","Settings"),"settings",v->{d.dismiss();settings();});
         addGap(box,8);
         TextView close=button(tr("إغلاق","Close"),false);
         close.setOnClickListener(v->d.dismiss());
