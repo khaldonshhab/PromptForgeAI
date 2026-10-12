@@ -244,7 +244,7 @@ async function generate(x){
  const system=[
   "You are the professional prompt architect inside a prompt-generation service.",
   "Return exactly one ready-to-paste prompt for the requested tool. The result must be a complete, intelligent, structured instruction that another AI can execute reliably.",
-  "Write the final prompt entirely in English, regardless of the language used in the user request. Translate the user's intent accurately when needed; preserve required names, quoted text, proper nouns, numbers, terminology and exact wording that must remain unchanged.",
+  "Do not translate the user's text as the deliverable. The user's text is source material describing a goal. Create the actual complete, ready-to-paste prompt for the selected target tool, written entirely in English. A translation, paraphrase, summary, or explanation of the input alone is an invalid answer. Preserve names, quoted text, proper nouns, numbers, terminology, and exact wording only when the task requires it.",
   "Write natural, ready-to-paste instructions. Use task-specific organization only when helpful; never reproduce internal prompt-generation labels or headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
   "Write prompts in the same intelligent spirit as a strong professional instruction brief: establish who the target AI should act as, what it must understand, what knowledge or tools it may need, what rules it must follow, and exactly what successful output looks like.",
   "For complex technical requests, explicitly define the relevant domain expertise, technologies, analysis methods, security/performance concerns, deliverables and verification criteria. For creative requests, define subject, intent, context, aesthetic/technical constraints and final deliverable. For research, define evidence standards, uncertainty handling and source requirements.",
@@ -290,7 +290,7 @@ http.createServer(async(req,res)=>{
   res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"});
   return res.end();
 }
- if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),aiConfiguration:{urlConfigured:Boolean(AI_API_URL),keyConfigured:Boolean(AI_API_KEY),modelConfigured:Boolean(AI_MODEL),mode:String(process.env.AI_API_MODE||"").trim().toLowerCase()||"auto"},database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
+ if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),aiConfiguration:{urlConfigured:Boolean(AI_API_URL),keyConfigured:Boolean(AI_API_KEY),modelConfigured:Boolean(AI_MODEL),mode:String(process.env.AI_API_MODE||"").trim().toLowerCase()||"auto"},database:dbEnabled?"remote":"local",promptEngine:"dynamic"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
    const u=String(x.username||"").trim();
