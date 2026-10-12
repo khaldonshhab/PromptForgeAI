@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
-const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
+const PORT=Number(process.env.PORT||8787),AI_API_URL=String(process.env.AI_API_URL||"").trim(),AI_API_KEY=String(process.env.AI_API_KEY||"").trim(),AI_MODEL=String(process.env.AI_MODEL||"").trim(),AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
 const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
@@ -145,7 +145,30 @@ function profileFor(platform,task){if(PROFILES[platform])return PROFILES[platfor
 function inferTask(idea,platform){const s=String(idea||"").toLowerCase()+" "+String(platform||"").toLowerCase();if(/image|photo|portrait|logo|poster|illustration|صورة|بورتريه|شعار|بوستر|تصميم/.test(s))return"Image";if(/video|film|shot|camera|animation|فيديو|مشهد|لقطة|كاميرا|تحريك/.test(s))return"Video";if(/voice|narration|dub|tts|voiceover|تعليق صوتي|دوبلاج|مذيع|صوت/.test(s))return"Voice";if(/music|song|lyrics|أغنية|موسيقى|لحن|كلمات/.test(s))return"Music";if(/code|coding|program|app|api|برمجة|كود|تطبيق|واجهة برمجية/.test(s))return"Coding";if(/research|study|paper|بحث|دراسة|مصادر|مراجع/.test(s))return"Research";if(/marketing|ad|campaign|seo|تسويق|إعلان|حملة|سيو/.test(s))return"Marketing";return"General";}
 function isCompilerEcho(s){
  const z=String(s||"").toLowerCase();
- return z.includes("target tool:")
+ const headings=[
+  /^role(?: and)? expertise(?: |$)/,
+  /^objective(?: and)? task(?: |$)/,
+  /^target(?: and)? context(?: |$)/,
+  /^required approach(?: |$)/,
+  /^tool specific guidance(?: |$)/,
+  /^working rules(?: |$)/,
+  /^output(?: and)? acceptance criteria(?: |$)/
+ ];
+ const lines=z.split(/\r?\n/).map(line=>line
+  .replace(/^\s*(?:(?:#{1,6}|>+|[-*+])\s*|\d{1,3}[.)]\s*)+/g,"")
+  .replace(/[*_`~]/g,"")
+  .replace(/[^\p{L}\p{N}]+/gu," ")
+  .trim()
+ );
+ const hasScaffoldHeading=lines.some((_,index)=>{
+  for(let count=1;count<=3&&index+count<=lines.length;count++){
+   const candidate=lines.slice(index,index+count).filter(Boolean).join(" ");
+   if(headings.some(heading=>heading.test(candidate)))return true;
+  }
+  return false;
+ });
+ return hasScaffoldHeading
+  ||z.includes("target tool:")
   ||z.includes("tool-specific guidance:")
   ||z.includes("current prompt engine knowledge:")
   ||z.includes("output language:")
@@ -160,45 +183,38 @@ function localPrompt(idea,platform,task){
  const s=String(idea||"").trim();
  const p=String(platform||"").trim();
  const t=String(task||"General").trim();
- if(!s)return "";
+ if(!s||[s,p,t].some(value=>Array.from(value).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character))))return "";
  const profile=profileFor(p,t);
  const native=TOOL_GUIDANCE[p]||RULES[profile]||"Use the target tool's native conventions and avoid unsupported syntax.";
- const title=profile==="coding"?"Senior Software Engineer":profile==="research"?"Senior Research Analyst":profile==="voice"?"Professional Voice Director":profile==="video"?"Film Director and Cinematographer":profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"?"Visual Director":profile==="music"?"Music Producer":"Senior AI Specialist";
- const execution=profile==="coding"
-  ?"First inspect the available project context. Then identify the exact components to change, implement the requested behavior using the existing architecture, handle errors and edge cases, and verify the result with appropriate tests or checks."
-  :profile==="research"
-  ?"Define the research question, identify the evidence required, distinguish established facts from inference, flag uncertainty, and present conclusions with source requirements appropriate to the task."
-  :profile==="voice"
-  ?"Define voice identity, delivery, tone, pace, rhythm, emphasis, pronunciation and pauses as needed. Keep spoken copy separate from performance direction."
-  :profile==="video"
-  ?"Define framing, subject action, camera movement, environment, lighting, temporal order, continuity and the intended ending. Avoid impossible or contradictory motion."
-  :profile==="music"
-  ?"Define genre, mood, instrumentation, vocal character, arrangement, dynamics, structure and lyrical intent only where relevant."
-  :profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"
-  ?"Define the subject, environment, composition, viewpoint, lens/camera language when useful, lighting, materials, color, mood and target visual finish. Use only controls supported by the selected tool."
-  :"Interpret the user's actual goal, resolve only material ambiguity, and add concrete constraints, quality criteria and deliverable requirements when they improve execution.";
- return [
-  "ROLE / EXPERTISE",
-  "Act as a "+title+" specialized in the user's requested outcome and experienced with "+p+".",
-  "",
-  "OBJECTIVE / TASK",
-  s,
-  "",
-  "TARGET / CONTEXT",
-  "Create the result specifically for "+p+". Task type: "+t+".",
-  "",
-  "REQUIRED APPROACH",
-  execution,
-  "",
-  "TOOL-SPECIFIC GUIDANCE",
-  native,
-  "",
-  "WORKING RULES",
-  "Preserve exact names, quoted text, numbers and required wording. Do not invent facts, files, APIs, capabilities, citations, parameters or project details. Do not add irrelevant sections. Resolve ambiguity conservatively and prioritize the user's actual goal.",
-  "",
-  "OUTPUT / ACCEPTANCE CRITERIA",
-  "Return one complete, standalone, ready-to-use result. Make it specific, coherent and actionable. Do not mention these instructions or the prompt-generation process."
- ].join("\n");
+ const taskText=t.toLowerCase();
+ const imageTask=profile.startsWith("image")||/image|visual|photo|picture/.test(taskText);
+ const videoTask=profile==="video"||taskText.includes("video");
+ const codingTask=profile==="coding"||taskText.includes("coding");
+ const researchTask=profile==="research"||taskText.includes("research");
+ const opening=imageTask
+  ?"Create a ready-to-use image-generation prompt for "+p+" from this request: \""+s+"\"."
+  :videoTask
+  ?"Create a ready-to-use video-generation prompt for "+p+" from this request: \""+s+"\"."
+  :codingTask
+  ?"Implement this request in the intended project using "+p+": \""+s+"\"."
+  :researchTask
+  ?"Research this question using "+p+" and prepare a useful, evidence-aware result: \""+s+"\"."
+  :"Use "+p+" to complete this request: \""+s+"\".";
+ const execution=imageTask
+  ?"Make the requested subject and setting clear, with a deliberate composition, perspective, lighting, palette, atmosphere, and visual detail that support the user's intent."
+  :videoTask
+  ?"Define the subject's action, camera movement, setting, lighting, timing, continuity, and ending in a physically coherent sequence."
+  :codingTask
+  ?"Inspect the available project context, make the requested change within its existing architecture, handle relevant edge cases, and verify it with appropriate checks."
+  :researchTask
+  ?"Identify relevant evidence, distinguish established facts from inference, state uncertainty, and do not invent sources or citations."
+  :"Preserve the user's intent and important details, adding only useful constraints and a clear description of the requested result.";
+ return [opening,execution,native,"Use only capabilities and controls supported by "+p+". Keep the result specific, coherent, and ready to use; do not add unrelated content or mention the prompt-generation process."].join(" ");
+}
+function localFallback(idea,platform,task,profile,mode){
+ const prompt=localPrompt(idea,platform,task);
+ if(!prompt||isCompilerEcho(prompt))throw new Error("fallback_unavailable");
+ return{prompt,profile,mode};
 }
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
@@ -257,7 +273,7 @@ async function generate(x){
  const requestedTask=String(x.task||"General").trim()||"General";
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
-  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
+  return localFallback(x.idea,x.platform,inferredTask,profileFor(x.platform,inferredTask),"local");
  }
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
@@ -268,7 +284,7 @@ async function generate(x){
   "You are the professional prompt architect inside a prompt-generation service.",
   "Return exactly one ready-to-paste prompt for the requested tool. The result must be a complete, intelligent, structured instruction that another AI can execute reliably.",
   "Write the final prompt entirely in English, regardless of the language used in the user request. Translate the user's intent accurately when needed; preserve required names, quoted text, proper nouns, numbers, terminology and exact wording that must remain unchanged.",
-  "The generated prompt should follow a clear expert-brief structure when the task benefits from it: ROLE or EXPERTISE, OBJECTIVE/TASK, CONTEXT, REQUIRED CAPABILITIES or KNOWLEDGE, WORKING RULES/CONSTRAINTS, STEP-BY-STEP EXECUTION when useful, and OUTPUT FORMAT/ACCEPTANCE CRITERIA. Do not force irrelevant sections onto simple requests.",
+  "Write natural, ready-to-paste instructions. Use task-specific organization only when helpful; never reproduce internal prompt-generation labels or headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
   "Write prompts in the same intelligent spirit as a strong professional instruction brief: establish who the target AI should act as, what it must understand, what knowledge or tools it may need, what rules it must follow, and exactly what successful output looks like.",
   "For complex technical requests, explicitly define the relevant domain expertise, technologies, analysis methods, security/performance concerns, deliverables and verification criteria. For creative requests, define subject, intent, context, aesthetic/technical constraints and final deliverable. For research, define evidence standards, uncertainty handling and source requirements.",
   "Do not merely expand keywords. Infer the user's real goal and add only details that materially improve execution. Never invent facts, files, APIs, capabilities, citations, parameters or project details.",
@@ -283,20 +299,23 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile,mode:"local_fallback"};
+  return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
  }
- if(isCompilerEcho(prompt)){
+ if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character))){
   const retrySystem=[
    "Write the final user-facing prompt now.",
    "Output only that prompt. No explanation, metadata, labels, or analysis.",
-   "Do not mention PromptForge, the compiler, internal context, routing fields, or knowledge-base instructions.",
+  "Do not mention PromptForge, the compiler, internal context, routing fields, knowledge-base instructions, or internal headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
    "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
    "Tool-specific guidance: "+native
   ].join("\n");
-  prompt=await callProvider(retrySystem,user);
+  try{prompt=await callProvider(retrySystem,user);}catch(error){
+   console.error("prompt_provider_retry_failed",error?.message||String(error));
+   return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
+  }
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
+ if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))return localFallback(x.idea,x.platform,inferredTask,profile,"local_fallback");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
@@ -310,7 +329,7 @@ http.createServer(async(req,res)=>{
   res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"});
   return res.end();
 }
- if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
+ if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),aiConfiguration:{urlConfigured:Boolean(AI_API_URL),keyConfigured:Boolean(AI_API_KEY),modelConfigured:Boolean(AI_MODEL),mode:String(process.env.AI_API_MODE||"").trim().toLowerCase()||"auto"},database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
    const u=String(x.username||"").trim();
@@ -338,6 +357,6 @@ http.createServer(async(req,res)=>{
  if(req.method==="POST"&&req.url.startsWith("/admin/users/")&&req.url.endsWith("/reset-device"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length,-"/reset-device".length));const found=USERS.find(v=>v.username===u);if(!found)return send(res,404,{error:"user_not_found"});await updateUserRecord(u,{deviceIdHash:null});found.deviceIdHash=null;return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"reset_device_failed"});}
  if(req.method==="DELETE"&&req.url.startsWith("/admin/users/"))try{const p=adminAuth(String(req.headers.authorization||"").replace(/^Bearer\s+/i,""));if(!p)return send(res,401,{error:"unauthorized"});const u=decodeURIComponent(req.url.slice("/admin/users/".length));if(!USERS.some(v=>v.username===u))return send(res,404,{error:"user_not_found"});await deleteUserRecord(u);return send(res,200,{ok:true});}catch(e){return send(res,400,{error:e.message||"delete_user_failed"});}
  if(req.method==="GET"&&req.url==="/admin") {res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(process.cwd(),"public","admin.html"),"utf8"));}
- if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){const reason=String(e?.message||"");console.error("prompt_generation_failed",reason);let status=502,code="provider_unavailable";if(reason==="provider_not_configured"){status=503;code=reason;}else if(reason==="provider_invalid_output"||reason==="provider_no_output"||reason==="provider_invalid_json"){status=502;code="provider_invalid_output";}else if(reason==="provider_timeout"){status=504;code=reason;}else if(reason==="provider_http_401"||reason==="provider_http_403"){status=502;code="provider_auth_failed";}else if(reason==="provider_http_429"){status=503;code="provider_rate_limited";}else if(reason==="platform_required"){status=400;code=reason;}return send(res,status,{error:code});}
+ if(req.method==="POST"&&req.url==="/v1/prompt")try{const token=String(req.headers.authorization||"").replace(/^Bearer\s+/i,"").trim();const session=auth(token);if(!session)return send(res,401,{error:"unauthorized"});if(!allowPrompt(session.u))return send(res,429,{error:"rate_limited"});const x=await body(req);if(typeof x.idea!=="string"||x.idea.trim().length<3)return send(res,400,{error:"idea_required"});if(x.idea.length>20000)return send(res,400,{error:"idea_too_long"});if(typeof x.platform!=="string"||x.platform.trim().length>100)return send(res,400,{error:"platform_invalid"});if(typeof x.task!=="string"&&x.task!==undefined)return send(res,400,{error:"task_invalid"});x.user=session.u;x.premium=!!session.p;return send(res,200,await generate(x));}catch(e){const reason=String(e?.message||"");console.error("prompt_generation_failed",reason);let status=502,code="provider_unavailable";if(reason==="provider_not_configured"||reason==="fallback_unavailable"){status=503;code=reason;}else if(reason==="provider_invalid_output"||reason==="provider_no_output"||reason==="provider_invalid_json"){status=502;code="provider_invalid_output";}else if(reason==="provider_timeout"){status=504;code=reason;}else if(reason==="provider_http_401"||reason==="provider_http_403"){status=502;code="provider_auth_failed";}else if(reason==="provider_http_429"){status=503;code="provider_rate_limited";}else if(reason==="platform_required"){status=400;code=reason;}return send(res,status,{error:code});}
  send(res,404,{error:"not_found"});
 }).listen(PORT,"0.0.0.0",async()=>{if(dbEnabled)try{await loadUsers();console.log("PromptForge user database connected");}catch(e){console.error("PromptForge user database error",e?.stack||e?.message||String(e),"DB_URL="+PF_DB_URL);}console.log("PromptForge backend on "+PORT);});
