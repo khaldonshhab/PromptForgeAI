@@ -6,27 +6,27 @@ const MIDJOURNEY_FLAGS = new Set([
 ]);
 
 const VALUE_RULES = {
-  ar: /^\\d+(?:\\.\\d+)?:\\d+(?:\\.\\d+)?$/,
-  aspect: /^\\d+(?:\\.\\d+)?:\\d+(?:\\.\\d+)?$/,
-  v: /^(?:\\d+(?:\\.\\d+)?|latest)$/i,
-  version: /^(?:\\d+(?:\\.\\d+)?|latest)$/i,
-  stylize: /^\\d{1,4}$/,
-  s: /^\\d{1,4}$/,
-  chaos: /^\\d{1,3}$/,
-  c: /^\\d{1,3}$/,
-  quality: /^(?:0\\.25|0\\.5|1|2)$/,
-  q: /^(?:0\\.25|0\\.5|1|2)$/,
-  weird: /^\\d{1,4}$/,
-  w: /^\\d{1,4}$/,
-  seed: /^\\d{1,10}$/,
-  iw: /^\\d+(?:\\.\\d+)?$/,
-  sw: /^\\d{1,4}$/,
-  ow: /^\\d{1,4}$/,
-  cw: /^\\d{1,3}$/,
-  stop: /^\\d{1,3}$/,
-  exp: /^\\d{1,3}$/,
-  repeat: /^\\d{1,3}$/,
-  bs: /^\\d{1,3}$/,
+  ar: /^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/,
+  aspect: /^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/,
+  v: /^(?:\d+(?:\.\d+)?|latest)$/i,
+  version: /^(?:\d+(?:\.\d+)?|latest)$/i,
+  stylize: /^\d{1,4}$/,
+  s: /^\d{1,4}$/,
+  chaos: /^\d{1,3}$/,
+  c: /^\d{1,3}$/,
+  quality: /^(?:0\.25|0\.5|1|2)$/,
+  q: /^(?:0\.25|0\.5|1|2)$/,
+  weird: /^\d{1,4}$/,
+  w: /^\d{1,4}$/,
+  seed: /^\d{1,10}$/,
+  iw: /^\d+(?:\.\d+)?$/,
+  sw: /^\d{1,4}$/,
+  ow: /^\d{1,4}$/,
+  cw: /^\d{1,3}$/,
+  stop: /^\d{1,3}$/,
+  exp: /^\d{1,3}$/,
+  repeat: /^\d{1,3}$/,
+  bs: /^\d{1,3}$/,
   motion: /^(?:low|high)$/i
 };
 
@@ -38,8 +38,8 @@ export function validateFinalPrompt(prompt, platform, profile = "") {
   const tool = String(platform || "").trim().toLowerCase();
   const issues = [];
   if (text.length < 20) issues.push("prompt_too_short");
-  if (/--[a-z][a-z0-9-]*\\s*$/.test(text)) issues.push("dangling_parameter");
-  const flags = [...text.matchAll(/--([a-z][a-z0-9-]*)(?:\\s+([^\\s]+))?/gi)];
+  if (/--[a-z][a-z0-9-]*\s*$/.test(text)) issues.push("dangling_parameter");
+  const flags = [...text.matchAll(/--([a-z][a-z0-9-]*)(?:\s+([^\s]+))?/gi)];
   const isMidjourney = tool === "midjourney";
   const isStableDiffusion = tool === "stable diffusion";
   if (isMidjourney) {
@@ -64,7 +64,7 @@ export function validateFinalPrompt(prompt, platform, profile = "") {
         issues.push("unsupported_midjourney_style:" + value);
       }
     }
-    if (/\\bnegative prompt\\b|stable diffusion/i.test(text)) issues.push("cross_tool_syntax");
+    if (/\bnegative prompt\b|stable diffusion/i.test(text)) issues.push("cross_tool_syntax");
   } else if (isStableDiffusion) {
     if (flags.some(m => ["ar","stylize","chaos","sref","niji","cref","sw","ow"].includes(m[1].toLowerCase()))) {
       issues.push("midjourney_syntax_in_stable_diffusion");
