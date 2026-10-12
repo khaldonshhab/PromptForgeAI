@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
 import {validateFinalPrompt} from "./prompt-validator.mjs";
+import {buildToolContract,validatePromptQuality} from "./tool-specialization.mjs";
 const PORT=Number(process.env.PORT||8787),AI_API_URL=String(process.env.AI_API_URL||"").trim(),AI_API_KEY=String(process.env.AI_API_KEY||"").trim(),AI_MODEL=String(process.env.AI_MODEL||"").trim(),AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
 const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
@@ -239,6 +240,7 @@ async function generate(x){
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL)throw new Error("provider_not_configured");
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
+ const toolContract=buildToolContract(x.platform,inferredTask,native);
  const knowledge=await getPromptKnowledge();
  const lang="English";
  const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+inferredTask+"</requested_task>\n<selected_tool>"+x.platform+"</selected_tool>";
@@ -247,6 +249,7 @@ async function generate(x){
   "TARGET TOOL (mandatory specialization): "+x.platform,
   "TASK TYPE: "+inferredTask,
   "TARGET-TOOL-SPECIFIC OPERATING GUIDANCE (apply this in the first generation, not only during retries): "+native,
+  toolContract,
   "PROFILE RULES: "+(RULES[profile]||"Use the selected tool's own workflow, capabilities, syntax and output conventions; do not copy another tool's syntax."),
   "The selected tool is not interchangeable with other tools. Shape the prompt around its actual workflow and expected input style. Preserve this distinction even when two tools share a broad category.",
   "Only include platform parameters, tags, control syntax, negative prompts, aspect ratios, model names, or feature claims when they are supported by the selected tool and materially useful. Never invent undocumented flags or settings. If an interface control is not prompt-controlled, do not pretend the prompt can set it.",
