@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {getPromptKnowledge} from "./prompt-engine.mjs";
-const PORT=Number(process.env.PORT||8787),AI_API_URL=process.env.AI_API_URL||"",AI_API_KEY=process.env.AI_API_KEY||"",AI_MODEL=process.env.AI_MODEL||"",AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
+const PORT=Number(process.env.PORT||8787),AI_API_URL=String(process.env.AI_API_URL||"").trim(),AI_API_KEY=String(process.env.AI_API_KEY||"").trim(),AI_MODEL=String(process.env.AI_MODEL||"").trim(),AUTH_SECRET=process.env.PF_AUTH_SECRET||"",ADMIN_USER=process.env.PF_ADMIN_USER||"admin",ADMIN_PASSWORD_HASH=process.env.PF_ADMIN_PASSWORD_HASH||"";
 const cleanEnv=v=>String(v||"").trim().replace(/^["\']|["\']$/g,"");
 const PF_DB_URL=cleanEnv(process.env.PF_DB_URL).replace(/\/$/,""),PF_DB_KEY=cleanEnv(process.env.PF_DB_KEY);
 const DATA_DIR=process.env.PF_DATA_DIR||path.join(process.cwd(),"data"),USERS_FILE=path.join(DATA_DIR,"users.json");
@@ -329,7 +329,7 @@ http.createServer(async(req,res)=>{
   res.writeHead(204,{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"GET,POST,PATCH,DELETE,OPTIONS"});
   return res.end();
 }
- if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
+ if(req.method==="GET"&&(pathname==="/health"||pathname==="/health/"))return send(res,200,{ok:true,service:"promptforge-backend",build:process.env.PF_BUILD_ID||String(process.env.RENDER_GIT_COMMIT||"").slice(0,7)||"prompt-engine-v4",configured:Boolean(AI_API_URL&&AI_API_KEY&&AI_MODEL),aiConfiguration:{urlConfigured:Boolean(AI_API_URL),keyConfigured:Boolean(AI_API_KEY),modelConfigured:Boolean(AI_MODEL),mode:String(process.env.AI_API_MODE||"").trim().toLowerCase()||"auto"},database:dbEnabled?"remote":"local",promptEngine:"dynamic",translator:"android-on-device"});
  if(req.method==="POST"&&req.url==="/v1/auth/login")try{
    const x=await body(req);
    const u=String(x.username||"").trim();
