@@ -240,9 +240,15 @@ async function generate(x){
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
  const knowledge=await getPromptKnowledge();
  const lang="English";
- const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+String(x.task||"General")+"</requested_task>";
+ const user="<user_idea>\n"+String(x.idea||"").trim()+"\n</user_idea>\n<requested_task>"+inferredTask+"</requested_task>\n<selected_tool>"+x.platform+"</selected_tool>";
  const system=[
   "You are the professional prompt architect inside a prompt-generation service.",
+  "TARGET TOOL (mandatory specialization): "+x.platform,
+  "TASK TYPE: "+inferredTask,
+  "TARGET-TOOL-SPECIFIC OPERATING GUIDANCE (apply this in the first generation, not only during retries): "+native,
+  "PROFILE RULES: "+(RULES[profile]||"Use the selected tool's own workflow, capabilities, syntax and output conventions; do not copy another tool's syntax."),
+  "The selected tool is not interchangeable with other tools. Shape the prompt around its actual workflow and expected input style. Preserve this distinction even when two tools share a broad category.",
+  "Only include platform parameters, tags, control syntax, negative prompts, aspect ratios, model names, or feature claims when they are supported by the selected tool and materially useful. Never invent undocumented flags or settings. If an interface control is not prompt-controlled, do not pretend the prompt can set it.",
   "Return exactly one ready-to-paste prompt for the requested tool. The result must be a complete, intelligent, structured instruction that another AI can execute reliably.",
   "Do not translate the user's text as the deliverable. The user's text is source material describing a goal. Create the actual complete, ready-to-paste prompt for the selected target tool, written entirely in English. A translation, paraphrase, summary, or explanation of the input alone is an invalid answer. Preserve names, quoted text, proper nouns, numbers, terminology, and exact wording only when the task requires it.",
   "Write natural, ready-to-paste instructions. Use task-specific organization only when helpful; never reproduce internal prompt-generation labels or headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
