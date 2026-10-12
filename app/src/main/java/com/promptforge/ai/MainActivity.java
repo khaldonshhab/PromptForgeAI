@@ -1108,11 +1108,13 @@ public class MainActivity extends Activity {
         card.setClickable(true); card.setFocusable(true); card.setOnClickListener(click);
         PFIconView ic=new PFIconView(this,icon,PURPLE);
         FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(34),dp(34));
-        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.TOP;
+        ip.topMargin=dp(13);
         if(ar())ip.rightMargin=dp(14);else ip.leftMargin=dp(14);
         card.addView(ic,ip);
-        TextView t=text(title,16,WHITE,true); t.setGravity(Gravity.CENTER);
+        TextView t=text(title,16,WHITE,true); t.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(34));
+        tp.topMargin=dp(8);
         if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
         card.addView(t,tp);
         TextView s1=text(sub,11,MUTED,false); s1.setGravity(Gravity.CENTER);
