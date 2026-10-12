@@ -315,3 +315,46 @@ test("non-English requests still fail clearly when no AI provider is configured"
   assert.deepEqual(data, { error: "provider_not_configured" });
   assert.equal("prompt" in data, false);
 });
+
+
+test("selected-tool guidance is sent on the first generation call and changes by platform", async t => {
+  const capturedSystems = [];
+  const provider = http.createServer(async (req, res) => {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const body = JSON.parse(raw);
+    capturedSystems.push(body.systemInstruction.parts[0].text);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: "Create a cinematic, detailed image prompt for an abandoned theatre with a torn curtain and dust-filled light." }] }
+      }]
+    }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+
+  for (const platform of ["Midjourney", "Gemini"]) {
+    const response = await postPrompt(backend.base, "Create a cinematic image of an abandoned theatre", platform, "Image");
+    const data = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(data));
+  }
+  assert.equal(capturedSystems.length, 2, "valid outputs should not require a retry");
+  assert.match(capturedSystems[0], /TARGET TOOL \(mandatory specialization\): Midjourney/);
+  assert.match(capturedSystems[0], /Midjourney parameters only at the end when useful/i);
+  assert.match(capturedSystems[1], /TARGET TOOL \(mandatory specialization\): Gemini/);
+  assert.match(capturedSystems[1], /direct, precise instructions/i);
+  assert.notEqual(capturedSystems[0], capturedSystems[1], "the first-call system guidance must differ by selected tool");
+});
