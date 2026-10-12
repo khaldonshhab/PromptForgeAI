@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateFinalPrompt } from "./prompt-validator.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const SECRET = "promptforge-test-secret-not-for-production";
@@ -357,4 +358,81 @@ test("selected-tool guidance is sent on the first generation call and changes by
   assert.match(capturedSystems[1], /TARGET TOOL \(mandatory specialization\): Gemini/);
   assert.match(capturedSystems[1], /direct, precise instructions/i);
   assert.notEqual(capturedSystems[0], capturedSystems[1], "the first-call system guidance must differ by selected tool");
+});
+
+test("final prompt validator rejects incomplete, unsupported, and malformed Midjourney parameters", () => {
+  const incomplete = validateFinalPrompt(
+    "Cinematic abandoned theater, torn velvet curtains, volumetric dust and dramatic lighting --ar 16:9 --v 6.0 --style",
+    "Midjourney",
+    "image-midjourney"
+  );
+  assert.equal(incomplete.ok, false);
+  assert.ok(incomplete.issues.some(issue => issue.includes("dangling_parameter")));
+  assert.ok(incomplete.issues.some(issue => issue.includes("incomplete_midjourney_parameter:style")));
+
+  const unsupported = validateFinalPrompt(
+    "Cinematic abandoned theater with torn curtains and dust-filled light --made-up 12",
+    "Midjourney",
+    "image-midjourney"
+  );
+  assert.equal(unsupported.ok, false);
+  assert.ok(unsupported.issues.includes("unsupported_midjourney_parameter:made-up"));
+
+  const malformed = validateFinalPrompt(
+    "Cinematic abandoned theater with torn curtains and dust-filled light --ar wide",
+    "Midjourney",
+    "image-midjourney"
+  );
+  assert.equal(malformed.ok, false);
+  assert.ok(malformed.issues.includes("invalid_midjourney_parameter_value:ar"));
+});
+
+test("final prompt validator accepts complete supported Midjourney parameters and tool-native non-flag prompts", () => {
+  const valid = validateFinalPrompt(
+    "Cinematic wide-angle abandoned theater, broken velvet seats, torn red curtain, dust motes in a warm light beam, photorealistic textures --ar 16:9 --v 6.1 --style raw",
+    "Midjourney",
+    "image-midjourney"
+  );
+  assert.equal(valid.ok, true, valid.issues.join(","));
+
+  const gemini = validateFinalPrompt(
+    "Create a cinematic image of an abandoned theater with torn velvet curtains, broken seats, and dusty shafts of light. Use a wide composition and muted colors.",
+    "Gemini",
+    "gemini"
+  );
+  assert.equal(gemini.ok, true, gemini.issues.join(","));
+});
+
+test("invalid Midjourney output is retried and only the validated final prompt is returned", async t => {
+  const outputs = [
+    "Cinematic abandoned theater, torn velvet curtains, broken seats and dust-filled light --ar 16:9 --v 6.0 --style",
+    "Cinematic wide-angle abandoned theater, broken velvet seats, torn red curtain, dust motes in a warm light beam, photorealistic textures --ar 16:9 --v 6.1 --style raw"
+  ];
+  let attempts = 0;
+  const provider = http.createServer((req, res) => {
+    attempts++;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: outputs[Math.min(attempts - 1, outputs.length - 1)] }] } }] }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+
+  const response = await postPrompt(backend.base, "Create a cinematic image of an abandoned theater", "Midjourney", "Image");
+  const data = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(attempts, 2, "invalid final output should trigger exactly one repair attempt");
+  assert.match(data.prompt, /--ar 16:9 --v 6\.1 --style raw$/);
+  assert.doesNotMatch(data.prompt, /--style\s*$/);
 });
