@@ -150,7 +150,7 @@ test("Gemini returns an English image prompt tailored to an abandoned post-apoca
   assert.equal(captured.body.systemInstruction.parts[0].text.includes("entirely in English"), true);
 });
 
-test("provider authentication failure uses a finished local fallback, never a template", async t => {
+test("provider authentication failure returns an explicit error and no prompt", async t => {
   const provider = http.createServer((req, res) => {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: { message: "invalid test key" } }));
@@ -172,25 +172,23 @@ test("provider authentication failure uses a finished local fallback, never a te
 
   const response = await postPrompt(backend.base, "Create a cinematic image of an abandoned theatre after the apocalypse", "Gemini", "Image");
   const data = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(data));
-  assert.equal(data.mode, "local_fallback");
-  assert.match(data.prompt, /abandoned theatre after the apocalypse/i);
-  assertNoInternalScaffold(data.prompt);
+  assert.equal(response.status, 502, JSON.stringify(data));
+  assert.deepEqual(data, { error: "provider_auth_failed" });
+  assert.equal("prompt" in data, false);
 });
 
-test("missing Gemini configuration preserves a usable English local fallback", async t => {
+test("missing Gemini configuration returns an explicit error and no prompt", async t => {
   const backend = await startBackend();
   t.after(() => backend.stop());
 
   const response = await postPrompt(backend.base, "Create an image of a quiet greenhouse at sunrise", "Gemini", "Image");
   const data = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(data));
-  assert.equal(data.mode, "local");
-  assert.match(data.prompt, /quiet greenhouse at sunrise/i);
-  assertNoInternalScaffold(data.prompt);
+  assert.equal(response.status, 503, JSON.stringify(data));
+  assert.deepEqual(data, { error: "provider_not_configured" });
+  assert.equal("prompt" in data, false);
 });
 
-test("provider failure uses the local fallback without returning compiler instructions", async t => {
+test("provider failure returns an explicit error and no local prompt", async t => {
   const provider = http.createServer((req, res) => {
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: { message: "temporary provider outage" } }));
@@ -212,13 +210,12 @@ test("provider failure uses the local fallback without returning compiler instru
 
   const response = await postPrompt(backend.base, "Create a short research brief about urban tree canopies", "Gemini", "Research");
   const data = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(data));
-  assert.equal(data.mode, "local_fallback");
-  assert.match(data.prompt, /urban tree canopies/i);
-  assertNoInternalScaffold(data.prompt);
+  assert.equal(response.status, 502, JSON.stringify(data));
+  assert.deepEqual(data, { error: "provider_unavailable" });
+  assert.equal("prompt" in data, false);
 });
 
-test("wrapped and multiline Gemini scaffold headings are retried and replaced with a finished fallback", async t => {
+test("wrapped and multiline Gemini scaffold headings are retried then rejected", async t => {
   const scaffolds = [
     "1. ROLE / EXPERTISE\nAct as a visual director.",
     "ROLE / EXPERTISE — additional instructions\nCreate the requested image.",
@@ -256,12 +253,11 @@ test("wrapped and multiline Gemini scaffold headings are retried and replaced wi
     attempts=0;
     const response = await postPrompt(backend.base, "Create an image of a lighthouse in a winter storm", "Gemini", "Image");
     const data = await response.json();
-    assert.equal(response.status, 200, JSON.stringify(data));
+    assert.equal(response.status, 502, JSON.stringify(data));
     assert.equal(attempts, 2, "the internal heading must trigger a retry");
-    assert.equal(data.mode, "local_fallback");
-    assert.match(data.prompt, /lighthouse in a winter storm/i);
+    assert.deepEqual(data, { error: "provider_invalid_output" });
+    assert.equal("prompt" in data, false);
     assert.notEqual(data.prompt, scaffold);
-    assertNoInternalScaffold(data.prompt);
   }
 });
 
@@ -295,27 +291,27 @@ test("natural English mentions of role and context are not mistaken for scaffold
   assert.equal(data.prompt, expected);
 });
 
-test("local fallback changes its final prompt for the selected image tool", async t => {
+test("unconfigured provider never returns local prompts for any target tool", async t => {
   const backend = await startBackend();
   t.after(() => backend.stop());
 
   const idea = "Create an image of a red bicycle beside a brick wall at dusk";
-  const midjourney = await (await postPrompt(backend.base, idea, "Midjourney", "Image")).json();
-  const stableDiffusion = await (await postPrompt(backend.base, idea, "Stable Diffusion", "Image")).json();
-  assert.notEqual(midjourney.prompt, stableDiffusion.prompt);
-  assert.match(midjourney.prompt, /Midjourney/i);
-  assert.match(stableDiffusion.prompt, /Positive Prompt/i);
-  assertNoInternalScaffold(midjourney.prompt);
-  assertNoInternalScaffold(stableDiffusion.prompt);
+  for (const platform of ["Midjourney", "Stable Diffusion", "Gemini"]) {
+    const response = await postPrompt(backend.base, idea, platform, "Image");
+    const data = await response.json();
+    assert.equal(response.status, 503, JSON.stringify(data));
+    assert.deepEqual(data, { error: "provider_not_configured" });
+    assert.equal("prompt" in data, false);
+  }
 });
 
-test("fallback returns a controlled error when it cannot preserve a non-English request in English", async t => {
+test("non-English requests still fail clearly when no AI provider is configured", async t => {
   const backend = await startBackend();
   t.after(() => backend.stop());
 
   const response = await postPrompt(backend.base);
   const data = await response.json();
   assert.equal(response.status, 503);
-  assert.deepEqual(data, { error: "fallback_unavailable" });
+  assert.deepEqual(data, { error: "provider_not_configured" });
   assert.equal("prompt" in data, false);
 });
