@@ -353,7 +353,7 @@ test("selected-tool guidance is sent on the first generation call and changes by
   }
   assert.equal(capturedSystems.length, 2, "valid outputs should not require a retry");
   assert.match(capturedSystems[0], /TARGET TOOL \(mandatory specialization\): Midjourney/);
-  assert.match(capturedSystems[0], /Midjourney parameters only when useful/i);
+  assert.match(capturedSystems[0], /Midjourney parameters only at the end when useful/i);
   assert.match(capturedSystems[1], /TARGET TOOL \(mandatory specialization\): Gemini/);
   assert.match(capturedSystems[1], /direct, precise instructions/i);
   assert.notEqual(capturedSystems[0], capturedSystems[1], "the first-call system guidance must differ by selected tool");
