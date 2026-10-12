@@ -69,7 +69,7 @@ export function validateFinalPrompt(prompt, platform, profile = "") {
     if (flags.some(m => ["ar","stylize","chaos","sref","niji","cref","sw","ow"].includes(m[1].toLowerCase()))) {
       issues.push("midjourney_syntax_in_stable_diffusion");
     }
-  } else if (flags.some(m => ["stylize","chaos","sref","niji","cref","cw","sw","ow"].includes(m[1].toLowerCase()))) {
+  } else if (flags.some(m => MIDJOURNEY_FLAGS.has(m[1].toLowerCase()))) {
     issues.push("midjourney_syntax_in_other_tool");
   }
   return { ok: issues.length === 0, issues: [...new Set(issues)] };
