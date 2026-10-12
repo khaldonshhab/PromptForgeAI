@@ -285,13 +285,16 @@ async function generate(x){
   }
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
- const validation=validateFinalPrompt(prompt,x.platform,profile);
+ const technicalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const qualityValidation=validatePromptQuality(prompt,x.platform,inferredTask);
+ const validation={ok:technicalValidation.ok&&qualityValidation.ok,issues:[...technicalValidation.issues,...qualityValidation.issues]};
  if(!validation.ok){
   const retrySystem=[
    "Your previous draft failed final tool-specific validation.",
    "Fix every issue below and return only the complete, ready-to-paste prompt. Do not explain the correction.",
    "Validation issues: "+validation.issues.join(", "),
    "For Midjourney, use only supported parameters, give every value-taking parameter a valid complete value, and put parameters at the end. Do not append an unfinished flag.",
+   "Also repair repetition, filler, internal scaffolding and foreign tool syntax. Add missing task-specific execution detail without inflating the prompt.",
    "Do not guess undocumented settings or unsupported version/style values.",
    "Selected tool: "+x.platform,
    toolContract,
@@ -303,7 +306,9 @@ async function generate(x){
   }
  }
  if(isCompilerEcho(prompt)||Array.from(prompt).some(character=>/\p{L}/u.test(character)&&!/\p{Script=Latin}/u.test(character)))throw new Error("provider_invalid_output");
- const finalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const finalTechnicalValidation=validateFinalPrompt(prompt,x.platform,profile);
+ const finalQualityValidation=validatePromptQuality(prompt,x.platform,inferredTask);
+ const finalValidation={ok:finalTechnicalValidation.ok&&finalQualityValidation.ok,issues:[...finalTechnicalValidation.issues,...finalQualityValidation.issues]};
  if(!finalValidation.ok){
   console.error("prompt_final_validation_failed",finalValidation.issues.join(","));
   throw new Error("provider_invalid_output");
