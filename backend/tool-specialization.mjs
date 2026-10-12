@@ -33,7 +33,7 @@ const CONTRACTS = {
 };
 
 const NOISY_WORDS = /\b(?:revolutionary|game[- ]changing|unparalleled|world[- ]class|cutting[- ]edge)\b/gi;
-const INTERNAL_SCAFFOLD = /\b(?:TARGET TOOL \(mandatory specialization\)|TOOL-SPECIFIC GUIDANCE|CURRENT PROMPT ENGINE KNOWLEDGE|OUTPUT LANGUAGE|ROLE \/ EXPERTISE|OUTPUT \/ ACCEPTANCE CRITERIA)\b/i;
+const INTERNAL_SCAFFOLD = /\b(?:TARGET TOOL(?: \(mandatory specialization\))?|TOOL SPECIFIC GUIDANCE|TOOL-SPECIFIC GUIDANCE|CURRENT PROMPT ENGINE KNOWLEDGE|OUTPUT LANGUAGE|ROLE \/ EXPERTISE|OBJECTIVE \/ TASK|TARGET \/ CONTEXT|REQUIRED APPROACH|WORKING RULES|OUTPUT \/ ACCEPTANCE CRITERIA)\b/i;
 
 export function buildToolContract(platform, task, nativeGuidance = "") {
   const name = String(platform || "").trim();
@@ -58,7 +58,7 @@ export function validatePromptQuality(prompt, platform, task) {
   if (text.length < 35) issues.push("quality_too_short");
   if (INTERNAL_SCAFFOLD.test(text)) issues.push("quality_internal_scaffold");
   if (/\b([\p{L}\p{N}]{3,})\s+\1\b/iu.test(text)) issues.push("quality_repeated_word");
-  if (/\b(\w[\w'-]*(?:\s+\w[\w'-]*){2,})\s+\1\b/i.test(text)) issues.push("quality_repeated_phrase");
+  if (/\b(\w[\w'-]*(?:\s+\w[\w'-]*){2,})[.,;:!?]?\s+\1\b/i.test(text)) issues.push("quality_repeated_phrase");
   if (/\b(?:please kindly|in conclusion|delve into|unleash the power of|revolutionize the way)\b/i.test(text)) issues.push("quality_filler");
   if (NOISY_WORDS.test(text)) issues.push("quality_empty_hype");
   NOISY_WORDS.lastIndex = 0;
