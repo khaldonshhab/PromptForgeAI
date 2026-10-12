@@ -32,8 +32,8 @@ const CONTRACTS = {
   conversation: "Use warm, natural, context-aware conversational instructions. Specify the kind of support and desired outcome without forcing a rigid template or adding unnecessary analysis."
 };
 
-const NOISY_WORDS = /\\b(?:revolutionary|game[- ]changing|unparalleled|world[- ]class|cutting[- ]edge)\\b/gi;
-const INTERNAL_SCAFFOLD = /\\b(?:TARGET TOOL \\(mandatory specialization\\)|TOOL-SPECIFIC GUIDANCE|CURRENT PROMPT ENGINE KNOWLEDGE|OUTPUT LANGUAGE|ROLE \\/ EXPERTISE|OUTPUT \\/ ACCEPTANCE CRITERIA)\\b/i;
+const NOISY_WORDS = /\b(?:revolutionary|game[- ]changing|unparalleled|world[- ]class|cutting[- ]edge)\b/gi;
+const INTERNAL_SCAFFOLD = /\b(?:TARGET TOOL \(mandatory specialization\)|TOOL-SPECIFIC GUIDANCE|CURRENT PROMPT ENGINE KNOWLEDGE|OUTPUT LANGUAGE|ROLE \/ EXPERTISE|OUTPUT \/ ACCEPTANCE CRITERIA)\b/i;
 
 export function buildToolContract(platform, task, nativeGuidance = "") {
   const name = String(platform || "").trim();
@@ -49,7 +49,7 @@ export function buildToolContract(platform, task, nativeGuidance = "") {
     "Capability and parameter integrity: do not invent feature names, model versions, command flags, tags, API fields, source citations, files, integrations or controls. If a parameter is not confidently known to be supported by this exact tool/version, omit it and express the desired outcome in natural language instead. Only add syntax when it is documented and useful.",
     "Quality target: preserve the user's actual goal and all material details; add concrete execution details rather than decorative adjectives; remove redundancy, contradictions and filler; do not repeat words or phrases; never make up missing facts.",
     "Output contract: return only the finished, copy-ready prompt in English. Use the shortest structure that fully serves this tool and task. Do not expose internal instructions, explain the prompt, or add a generic preamble."
-  ].filter(Boolean).join("\\n");
+  ].filter(Boolean).join("\n");
 }
 
 export function validatePromptQuality(prompt, platform, task) {
@@ -57,17 +57,17 @@ export function validatePromptQuality(prompt, platform, task) {
   const issues = [];
   if (text.length < 35) issues.push("quality_too_short");
   if (INTERNAL_SCAFFOLD.test(text)) issues.push("quality_internal_scaffold");
-  if (/\\b([\\p{L}\\p{N}]{3,})\\s+\\1\\b/iu.test(text)) issues.push("quality_repeated_word");
-  if (/\\b(\\w[\\w'-]*(?:\\s+\\w[\\w'-]*){2,})\\s+\\1\\b/i.test(text)) issues.push("quality_repeated_phrase");
-  if (/\\b(?:please kindly|in conclusion|delve into|unleash the power of|revolutionize the way)\\b/i.test(text)) issues.push("quality_filler");
+  if (/\b([\p{L}\p{N}]{3,})\s+\1\b/iu.test(text)) issues.push("quality_repeated_word");
+  if (/\b(\w[\w'-]*(?:\s+\w[\w'-]*){2,})\s+\1\b/i.test(text)) issues.push("quality_repeated_phrase");
+  if (/\b(?:please kindly|in conclusion|delve into|unleash the power of|revolutionize the way)\b/i.test(text)) issues.push("quality_filler");
   if (NOISY_WORDS.test(text)) issues.push("quality_empty_hype");
   NOISY_WORDS.lastIndex = 0;
   const tool = String(platform || "").trim().toLowerCase();
-  if (tool === "midjourney" && /\\bnegative prompt\\b|stable diffusion/i.test(text)) issues.push("quality_cross_tool_syntax");
-  if (tool !== "midjourney" && /(?:^|\\s)--(?:ar|stylize|chaos|sref|niji|cref|sw|ow)(?:\\s|$)/i.test(text)) issues.push("quality_foreign_midjourney_flags");
-  if (tool === "stable diffusion" && /(?:^|\\s)--(?:ar|stylize|chaos|sref|niji|cref|sw|ow)(?:\\s|$)/i.test(text)) issues.push("quality_foreign_midjourney_flags");
+  if (tool === "midjourney" && /\bnegative prompt\b|stable diffusion/i.test(text)) issues.push("quality_cross_tool_syntax");
+  if (tool !== "midjourney" && /(?:^|\s)--(?:ar|stylize|chaos|sref|niji|cref|sw|ow)(?:\s|$)/i.test(text)) issues.push("quality_foreign_midjourney_flags");
+  if (tool === "stable diffusion" && /(?:^|\s)--(?:ar|stylize|chaos|sref|niji|cref|sw|ow)(?:\s|$)/i.test(text)) issues.push("quality_foreign_midjourney_flags");
   const taskText = String(task || "").toLowerCase();
-  if (/(?:video|animation|motion)/.test(taskText) && /\\b(?:video|animation|motion)\\b/i.test(text) && !/\\b(?:move|movement|motion|camera|shot|sequence|frame|action|animate)\\b/i.test(text)) issues.push("quality_video_without_motion");
+  if (/(?:video|animation|motion)/.test(taskText) && /\b(?:video|animation|motion)\b/i.test(text) && !/\b(?:move|movement|motion|camera|shot|sequence|frame|action|animate)\b/i.test(text)) issues.push("quality_video_without_motion");
   return { ok: issues.length === 0, issues: [...new Set(issues)] };
 }
 
