@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateFinalPrompt } from "./prompt-validator.mjs";
+import { buildToolContract, validatePromptQuality, TOOL_SPECIALIZATION_COUNT } from "./tool-specialization.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const SECRET = "promptforge-test-secret-not-for-production";
@@ -443,4 +444,72 @@ test("invalid Midjourney output is retried and only the validated final prompt i
   assert.equal(attempts, 2, "invalid final output should trigger exactly one repair attempt");
   assert.match(data.prompt, /--ar 16:9 --v 6\.1 --style raw$/);
   assert.doesNotMatch(data.prompt, /--style\s*$/);
+});
+
+
+test("individual tool contracts exist and meaningfully distinguish native workflows", () => {
+  const contracts = [
+    ["Midjourney", "Image", "Midjourney parameters"],
+    ["Stable Diffusion", "Image", "Positive Prompt"],
+    ["Gemini", "Image", "general-purpose conversational model"],
+    ["Google Veo", "Video", "temporal progression"],
+    ["ElevenLabs", "Voice", "spoken script"],
+    ["Suno", "Music", "song progression"],
+    ["Cursor", "Coding", "acceptance criteria"],
+    ["Consensus", "Research", "verifiable, relevant sources"],
+    ["Ideogram", "Image", "exact text content"],
+    ["Magnific", "Image", "source as authoritative"],
+    ["Photoroom", "Image", "product identity"],
+    ["Gamma", "Presentation", "narrative arc"],
+    ["Meshy", "3D", "geometry"]
+  ];
+  assert.ok(TOOL_SPECIALIZATION_COUNT >= 70, "specialization registry must cover the product's broad tool catalog");
+  const outputs = new Set();
+  for (const [tool, task, expected] of contracts) {
+    const prompt = buildToolContract(tool, task, "Native note for " + tool);
+    assert.match(prompt, new RegExp(tool.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+    assert.ok(prompt.includes(expected), tool + " should receive its own workflow contract");
+    outputs.add(prompt);
+  }
+  assert.equal(outputs.size, contracts.length, "each selected tool should receive a distinct contract");
+});
+
+test("quality validator catches repeated words, repeated phrases and cross-tool syntax", () => {
+  assert.ok(validatePromptQuality("Create a cinematic image of an abandoned theater with dust-filled light and torn curtains.", "Gemini", "Image").ok);
+  assert.ok(validatePromptQuality("Create a cinematic image of the the abandoned theater with dust-filled light.", "Gemini", "Image").issues.includes("quality_repeated_word"));
+  assert.ok(validatePromptQuality("Cinematic theater with dust-filled light, cinematic theater with dust-filled light.", "Gemini", "Image").issues.includes("quality_repeated_phrase"));
+  assert.ok(validatePromptQuality("A dramatic image of a theater --ar 16:9 --stylize 200", "Gemini", "Image").issues.includes("quality_foreign_midjourney_flags"));
+  assert.ok(validatePromptQuality("TARGET TOOL (mandatory specialization): Gemini. Create a useful image prompt.", "Gemini", "Image").issues.includes("quality_internal_scaffold"));
+});
+
+test("quality failure triggers one repair attempt and only clean prompt is returned", async t => {
+  const outputs = [
+    "Create a cinematic image of the the abandoned theater with dust-filled light and torn curtains.",
+    "Create a cinematic image of an abandoned theater, torn velvet curtains, dust-filled light shafts and broken seats. Use a wide composition, muted colors and realistic textures."
+  ];
+  let attempts = 0;
+  const provider = http.createServer((req, res) => {
+    attempts++;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: outputs[Math.min(attempts - 1, outputs.length - 1)] }] } }] }));
+  });
+  await new Promise((resolve, reject) => {
+    provider.once("error", reject);
+    provider.listen(0, "127.0.0.1", resolve);
+  });
+  const backend = await startBackend({
+    AI_API_URL: "http://127.0.0.1:" + provider.address().port + "/generateContent",
+    AI_API_KEY: "integration-test-key",
+    AI_MODEL: "gemini-test-model",
+    AI_API_MODE: "gemini"
+  });
+  t.after(async () => {
+    await backend.stop();
+    await new Promise(resolve => provider.close(resolve));
+  });
+  const response = await postPrompt(backend.base, "Create a cinematic image of an abandoned theater", "Gemini", "Image");
+  const data = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(data));
+  assert.equal(attempts, 2);
+  assert.doesNotMatch(data.prompt, /the the/i);
 });
