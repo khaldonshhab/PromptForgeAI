@@ -239,7 +239,7 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  throw new Error("provider_unavailable");
+  throw error;
  }
  if(isCompilerEcho(prompt)){
   const retrySystem=[
