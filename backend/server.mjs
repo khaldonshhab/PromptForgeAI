@@ -156,50 +156,6 @@ function isCompilerEcho(s){
   ||z.includes("internal context")
   ||z.includes("<internal_context");
 }
-function localPrompt(idea,platform,task){
- const s=String(idea||"").trim();
- const p=String(platform||"").trim();
- const t=String(task||"General").trim();
- if(!s)return "";
- const profile=profileFor(p,t);
- const native=TOOL_GUIDANCE[p]||RULES[profile]||"Use the target tool's native conventions and avoid unsupported syntax.";
- const title=profile==="coding"?"Senior Software Engineer":profile==="research"?"Senior Research Analyst":profile==="voice"?"Professional Voice Director":profile==="video"?"Film Director and Cinematographer":profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"?"Visual Director":profile==="music"?"Music Producer":"Senior AI Specialist";
- const execution=profile==="coding"
-  ?"First inspect the available project context. Then identify the exact components to change, implement the requested behavior using the existing architecture, handle errors and edge cases, and verify the result with appropriate tests or checks."
-  :profile==="research"
-  ?"Define the research question, identify the evidence required, distinguish established facts from inference, flag uncertainty, and present conclusions with source requirements appropriate to the task."
-  :profile==="voice"
-  ?"Define voice identity, delivery, tone, pace, rhythm, emphasis, pronunciation and pauses as needed. Keep spoken copy separate from performance direction."
-  :profile==="video"
-  ?"Define framing, subject action, camera movement, environment, lighting, temporal order, continuity and the intended ending. Avoid impossible or contradictory motion."
-  :profile==="music"
-  ?"Define genre, mood, instrumentation, vocal character, arrangement, dynamics, structure and lyrical intent only where relevant."
-  :profile.startsWith("image")||profile==="design"||profile==="firefly"||profile==="leonardo"||profile==="flux"||profile==="krea"||profile==="freepik"||profile==="magnific"||profile==="photoroom"
-  ?"Define the subject, environment, composition, viewpoint, lens/camera language when useful, lighting, materials, color, mood and target visual finish. Use only controls supported by the selected tool."
-  :"Interpret the user's actual goal, resolve only material ambiguity, and add concrete constraints, quality criteria and deliverable requirements when they improve execution.";
- return [
-  "ROLE / EXPERTISE",
-  "Act as a "+title+" specialized in the user's requested outcome and experienced with "+p+".",
-  "",
-  "OBJECTIVE / TASK",
-  s,
-  "",
-  "TARGET / CONTEXT",
-  "Create the result specifically for "+p+". Task type: "+t+".",
-  "",
-  "REQUIRED APPROACH",
-  execution,
-  "",
-  "TOOL-SPECIFIC GUIDANCE",
-  native,
-  "",
-  "WORKING RULES",
-  "Preserve exact names, quoted text, numbers and required wording. Do not invent facts, files, APIs, capabilities, citations, parameters or project details. Do not add irrelevant sections. Resolve ambiguity conservatively and prioritize the user's actual goal.",
-  "",
-  "OUTPUT / ACCEPTANCE CRITERIA",
-  "Return one complete, standalone, ready-to-use result. Make it specific, coherent and actionable. Do not mention these instructions or the prompt-generation process."
- ].join("\n");
-}
 function extractProviderText(d){
  let out=d?.output_text||d?.choices?.[0]?.message?.content||"";
  if(!out&&Array.isArray(d?.output))for(const i of d.output)for(const c of(i.content||[]))if(typeof c.text==="string")out+=c.text;
@@ -257,7 +213,7 @@ async function generate(x){
  const requestedTask=String(x.task||"General").trim()||"General";
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
  if(!AI_API_URL||!AI_API_KEY||!AI_MODEL){
-  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile:profileFor(x.platform,inferredTask),mode:"local"};
+  throw new Error("provider_not_configured");
  }
  const profile=profileFor(x.platform,inferredTask);
  const native=TOOL_GUIDANCE[x.platform]||RULES[profile]||"Understand the user's intent, preserve it, add only material constraints and define a useful output format.";
@@ -283,7 +239,7 @@ async function generate(x){
   prompt=await callProvider(system,user);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
-  return{prompt:localPrompt(x.idea,x.platform,inferredTask),profile,mode:"local_fallback"};
+  throw new Error("provider_unavailable");
  }
  if(isCompilerEcho(prompt)){
   const retrySystem=[
@@ -296,7 +252,7 @@ async function generate(x){
   ].join("\n");
   prompt=await callProvider(retrySystem,user);
  }
- if(isCompilerEcho(prompt))prompt=localPrompt(x.idea,x.platform,inferredTask);
+ if(isCompilerEcho(prompt))throw new Error("provider_invalid_output");
  if(prompt.length<20)throw new Error("provider_prompt_too_short");
  const forbidden=profile==="image-midjourney" && /negative prompt|stable diffusion/i.test(prompt);
  if(forbidden)throw new Error("platform_syntax_mismatch_midjourney");
