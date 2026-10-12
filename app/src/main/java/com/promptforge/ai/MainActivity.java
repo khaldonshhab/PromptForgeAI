@@ -46,6 +46,26 @@ public class MainActivity extends Activity {
         showSplash();
     }
 
+    /**
+     * Restore the remote account session saved after a successful server login.
+     * The server remains the source of truth for authentication; this only restores
+     * the last signed-in route instead of forcing every returning user to log in.
+     */
+    private void resumeSession(){
+        String username=s.accountUser();
+        String token=s.accountToken();
+        if(username==null||username.trim().isEmpty()||token==null||token.trim().isEmpty()){
+            loginScreen();
+            return;
+        }
+        home();
+        if(s.isAdmin()){
+            Intent i=new Intent(this,AdminActivity.class);
+            i.putExtra("admin_token",token);
+            startActivity(i);
+        }
+    }
+
     @Override public void onBackPressed(){
         if("home".equals(currentScreen)||"login".equals(currentScreen)||"splash".equals(currentScreen)){
             confirmExit();
@@ -407,7 +427,7 @@ public class MainActivity extends Activity {
         cp.leftMargin=dp(22);cp.rightMargin=dp(22);
         root.addView(center,cp);
         showRoot(root);
-        new Handler(Looper.getMainLooper()).postDelayed(this::loginScreen,1050);
+        new Handler(Looper.getMainLooper()).postDelayed(this::resumeSession,1050);
     }
 
     private void loginScreen(){
@@ -875,12 +895,8 @@ public class MainActivity extends Activity {
         box.addView(top,new LinearLayout.LayoutParams(-1,dp(54)));
         addGap(box,12);
 
-        addMenuRow(box,tr("إنشاء برومبت","Create Prompt"),"spark",v->{d.dismiss();create();});
-        addMenuRow(box,tr("تحسين برومبت","Improve Prompt"),"edit",v->{d.dismiss();improve();});
-        addMenuRow(box,tr("برومبت عشوائي","Random Prompt"),"spark",v->{d.dismiss();randomPrompt();});
-        addMenuRow(box,tr("اختبارات وترفيه","Fun & Compatibility"),"spark",v->{d.dismiss();funCenter();});
-        addMenuRow(box,tr("كل المنصات والأدوات","All AI Platforms"),"grid",v->{d.dismiss();platforms();});
-        addMenuRow(box,tr("المحادثات المحفوظة","Saved & History"),"chat",v->{d.dismiss();listScreen("history");});
+        // Keep this menu focused on account actions; creation, tools and history
+        // already have dedicated entry points in the home screen and bottom navigation.
         addMenuRow(box,tr("حسابي","My Account"),"user",v->{d.dismiss();account();});
         addMenuRow(box,tr("الإعدادات","Settings"),"settings",v->{d.dismiss();settings();});
         addGap(box,8);
@@ -1092,11 +1108,13 @@ public class MainActivity extends Activity {
         card.setClickable(true); card.setFocusable(true); card.setOnClickListener(click);
         PFIconView ic=new PFIconView(this,icon,PURPLE);
         FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(dp(34),dp(34));
-        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.CENTER_VERTICAL;
+        ip.gravity=(ar()?Gravity.RIGHT:Gravity.LEFT)|Gravity.TOP;
+        ip.topMargin=dp(13);
         if(ar())ip.rightMargin=dp(14);else ip.leftMargin=dp(14);
         card.addView(ic,ip);
-        TextView t=text(title,16,WHITE,true); t.setGravity(Gravity.CENTER);
+        TextView t=text(title,16,WHITE,true); t.setGravity(Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-1,dp(34));
+        tp.topMargin=dp(8);
         if(ar())tp.rightMargin=dp(54);else tp.leftMargin=dp(54);
         card.addView(t,tp);
         TextView s1=text(sub,11,MUTED,false); s1.setGravity(Gravity.CENTER);
@@ -2090,9 +2108,27 @@ public class MainActivity extends Activity {
         }
 
         private int[] genericColors(String n){
-            if(n.contains("voice"))return new int[]{Color.rgb(245,100,160),Color.rgb(120,70,255)};
-            if(n.contains("video"))return new int[]{Color.rgb(35,130,255),Color.rgb(75,75,255)};
-            if(n.contains("music"))return new int[]{Color.rgb(255,95,125),Color.rgb(130,65,255)};
+            String x=n.toLowerCase(Locale.ROOT);
+            // Brand-informed colors make every tool tile visually distinguishable.
+            if(x.contains("google")||x.contains("gemini"))return new int[]{Color.rgb(66,133,244),Color.rgb(155,114,255)};
+            if(x.contains("microsoft")||x.contains("copilot"))return new int[]{Color.rgb(0,120,212),Color.rgb(90,80,230)};
+            if(x.contains("adobe")||x.contains("firefly"))return new int[]{Color.rgb(255,70,70),Color.rgb(160,35,100)};
+            if(x.contains("canva"))return new int[]{Color.rgb(0,196,204),Color.rgb(122,74,255)};
+            if(x.contains("freepik"))return new int[]{Color.rgb(18,185,129),Color.rgb(0,136,220)};
+            if(x.contains("ideogram"))return new int[]{Color.rgb(55,76,180),Color.rgb(130,65,210)};
+            if(x.contains("leonardo"))return new int[]{Color.rgb(35,180,160),Color.rgb(30,90,180)};
+            if(x.contains("krea"))return new int[]{Color.rgb(255,120,60),Color.rgb(190,60,140)};
+            if(x.contains("midjourney"))return new int[]{Color.rgb(30,35,48),Color.rgb(95,105,125)};
+            if(x.contains("voice")||x.contains("audio")||x.contains("speech")||x.contains("murf")||x.contains("cartesia"))return new int[]{Color.rgb(245,100,160),Color.rgb(120,70,255)};
+            if(x.contains("video")||x.contains("runway")||x.contains("kling")||x.contains("pika")||x.contains("luma")||x.contains("veo")||x.contains("vidu"))return new int[]{Color.rgb(35,130,255),Color.rgb(75,75,255)};
+            if(x.contains("music")||x.contains("suno")||x.contains("udio"))return new int[]{Color.rgb(255,95,125),Color.rgb(130,65,255)};
+            if(x.contains("research")||x.contains("scispace")||x.contains("consensus")||x.contains("elicit"))return new int[]{Color.rgb(0,190,190),Color.rgb(35,90,180)};
+            if(x.contains("coding")||x.contains("cursor")||x.contains("replit")||x.contains("tabnine")||x.contains("windsurf"))return new int[]{Color.rgb(35,190,145),Color.rgb(20,95,170)};
+            if(x.contains("openai")||x.contains("chatgpt"))return new int[]{Color.rgb(16,163,127),Color.rgb(10,105,100)};
+            if(x.contains("anthropic")||x.contains("claude"))return new int[]{Color.rgb(210,120,75),Color.rgb(150,75,45)};
+            if(x.contains("xai")||x.contains("grok"))return new int[]{Color.rgb(45,48,58),Color.rgb(110,115,130)};
+            if(x.contains("meta"))return new int[]{Color.rgb(0,120,255),Color.rgb(110,80,255)};
+            if(x.contains("voice"))return new int[]{Color.rgb(245,100,160),Color.rgb(120,70,255)};
             return new int[]{BLUE,VIOLET};
         }
 
