@@ -276,6 +276,7 @@ async function generate(x){
   "Do not mention PromptForge, the compiler, internal context, routing fields, knowledge-base instructions, or internal headings such as ROLE / EXPERTISE, TARGET / CONTEXT, TOOL-SPECIFIC GUIDANCE, or OUTPUT / ACCEPTANCE CRITERIA.",
    "Start with the user's actual task. Preserve all requested details and improve only what is necessary for execution.",
    "The final prompt must be entirely in English, regardless of the language used in the user request. Preserve required names, quoted text, proper nouns, numbers, and exact wording when the target tool requires them.",
+   toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
   try{prompt=await callProvider(retrySystem,user);}catch(error){
@@ -293,6 +294,7 @@ async function generate(x){
    "For Midjourney, use only supported parameters, give every value-taking parameter a valid complete value, and put parameters at the end. Do not append an unfinished flag.",
    "Do not guess undocumented settings or unsupported version/style values.",
    "Selected tool: "+x.platform,
+   toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
   try{prompt=await callProvider(retrySystem,user);}catch(error){
