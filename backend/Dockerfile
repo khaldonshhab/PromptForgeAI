@@ -1,6 +1,6 @@
 FROM node:20-alpine
 WORKDIR /app
-COPY package.json server.mjs prompt-engine.mjs prompt-engine.json ./
+COPY package.json server.mjs prompt-engine.mjs prompt-engine.json prompt-validator.mjs ./
 COPY public ./public
 RUN npm install --omit=dev
 ENV NODE_ENV=production
