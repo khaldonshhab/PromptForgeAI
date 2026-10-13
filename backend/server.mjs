@@ -322,7 +322,7 @@ async function generate(x){
    toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
-  try{prompt=await callProvider(retrySystem,user);}catch(error){
+  try{prompt=await callProvider(retrySystem,user,deadline);}catch(error){
    console.error("prompt_validation_retry_failed",error?.message||String(error));
    throw error;
   }
