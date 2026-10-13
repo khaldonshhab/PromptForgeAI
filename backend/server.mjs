@@ -221,7 +221,7 @@ async function callProvider(system,user){
  // Retry transient Gemini 503 responses twice before surfacing the provider error.
  for(let attempt=0;attempt<3;attempt++){
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),22000);
+  const timeout=setTimeout(()=>controller.abort(),55000);
   try{
    r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
    t=await r.text();
@@ -236,9 +236,11 @@ async function callProvider(system,user){
   let detail="";
   try{
    const parsed=JSON.parse(t);
-   detail=String(parsed?.error?.message||parsed?.message||"");
+   const providerError=parsed?.error||parsed;
+   const details=Array.isArray(providerError?.details)?providerError.details:[];
+   detail=[providerError?.message||parsed?.message||"",...details.map(v=>JSON.stringify(v))].filter(Boolean).join(" | ");
   }catch{}
-  detail=detail.replace(/AIza[0-9A-Za-z_-]{20,}/g,"[redacted]").replace(/\s+/g," ").slice(0,400);
+  detail=detail.replace(/AIza[0-9A-Za-z_-]{20,}/g,"[redacted]").replace(/\s+/g," ").slice(0,1000);
   console.error("prompt_provider_rejected","status="+r.status,detail||"no_provider_detail");
   throw new Error("provider_http_"+r.status);
  }
