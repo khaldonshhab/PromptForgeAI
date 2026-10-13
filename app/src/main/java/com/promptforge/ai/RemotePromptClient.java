@@ -10,7 +10,7 @@ public final class RemotePromptClient{
     c=(HttpURLConnection)new URL(url).openConnection();
     c.setRequestMethod(method);
     c.setConnectTimeout(10000);
-    c.setReadTimeout(30000);
+    c.setReadTimeout(75000);
     c.setUseCaches(false);
     c.setDoInput(true);
     c.setRequestProperty("Accept","application/json");
