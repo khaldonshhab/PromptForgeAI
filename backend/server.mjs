@@ -192,7 +192,7 @@ function extractProviderText(d){
  }
  return String(out||"").trim();
 }
-async function callProvider(system,user){
+async function callProvider(system,user,deadline=Date.now()+65000){
  let mode=String(process.env.AI_API_MODE||"").trim().toLowerCase();
  let endpoint=AI_API_URL;
  const isGoogleEndpoint=/generativelanguage\.googleapis\.com/i.test(endpoint);
@@ -220,8 +220,10 @@ async function callProvider(system,user){
  let r,t;
  // Retry transient Gemini 503 responses twice before surfacing the provider error.
  for(let attempt=0;attempt<3;attempt++){
+  const remaining=deadline-Date.now();
+  if(remaining<1000)throw new Error("provider_timeout");
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),55000);
+  const timeout=setTimeout(()=>controller.abort(),Math.min(55000,remaining));
   try{
    r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
    t=await r.text();
@@ -250,6 +252,7 @@ async function callProvider(system,user){
  return out;
 }
 async function generate(x){
+ const deadline=Date.now()+65000;
  if(typeof x.platform!=="string"||!x.platform.trim())throw new Error("platform_required");
  const requestedTask=String(x.task||"General").trim()||"General";
  const inferredTask=requestedTask==="General"?inferTask(x.idea,x.platform):requestedTask;
@@ -283,7 +286,7 @@ async function generate(x){
  ].join("\n");
  let prompt;
  try {
-  prompt=await callProvider(system,user);
+  prompt=await callProvider(system,user,deadline);
  } catch(error) {
   console.error("prompt_provider_unavailable",error?.message||String(error));
   throw error;
@@ -298,7 +301,7 @@ async function generate(x){
    toolContract,
    "Tool-specific guidance: "+native
   ].join("\n");
-  try{prompt=await callProvider(retrySystem,user);}catch(error){
+  try{prompt=await callProvider(retrySystem,user,deadline);}catch(error){
    console.error("prompt_provider_retry_failed",error?.message||String(error));
    throw error;
   }
