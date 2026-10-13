@@ -232,7 +232,16 @@ async function callProvider(system,user){
   if(r.status!==503||attempt===2)break;
   await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
  }
- if(!r.ok)throw new Error("provider_http_"+r.status);
+ if(!r.ok){
+  let detail="";
+  try{
+   const parsed=JSON.parse(t);
+   detail=String(parsed?.error?.message||parsed?.message||"");
+  }catch{}
+  detail=detail.replace(/AIza[0-9A-Za-z_-]{20,}/g,"[redacted]").replace(/\s+/g," ").slice(0,400);
+  console.error("prompt_provider_rejected","status="+r.status,detail||"no_provider_detail");
+  throw new Error("provider_http_"+r.status);
+ }
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
  const out=extractProviderText(d);
  if(!out)throw new Error("provider_no_output");
