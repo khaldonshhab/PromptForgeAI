@@ -218,7 +218,7 @@ async function callProvider(system,user){
   if(mode==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  }
  const controller=new AbortController();
- const timeout=setTimeout(()=>controller.abort(),30000);
+ const timeout=setTimeout(()=>controller.abort(),60000);
  let r,t;
  try{
   r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
