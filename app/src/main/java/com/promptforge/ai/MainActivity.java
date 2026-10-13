@@ -1291,9 +1291,10 @@ public class MainActivity extends Activity {
                 return;
             }
             if("http_401".equals(val)||"http_403".equals(val)){
-                s.logout();
-                toast(tr("انتهت جلسة الدخول، سجّل الدخول من جديد","Your session expired. Please sign in again."));
-                loginScreen();
+                // A prompt-generation authorization response does not by itself prove
+                // the saved account session is invalid. Keep the user's local session
+                // so a backend permission/configuration issue cannot force a logout.
+                toast(tr("الخادم رفض طلب توليد البرومبت. بقيت مسجّل الدخول؛ حاول لاحقاً أو أعد تسجيل الدخول إذا استمر الخطأ.","The server rejected prompt generation. You are still signed in; try again later, or sign in again if the problem persists."));
                 return;
             }
             toast(tr("تعذّر الاتصال بالذكاء الاصطناعي. تحقق من الاتصال وحاول مجدداً.","Could not connect to the AI server. Check your connection and try again."));
