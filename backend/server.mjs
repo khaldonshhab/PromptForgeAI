@@ -210,7 +210,7 @@ async function callProvider(system,user){
   payload={
    systemInstruction:{parts:[{text:system}]},
    contents:[{role:"user",parts:[{text:user}]}],
-   generationConfig:{temperature:0.4,thinkingConfig:{thinkingBudget:0}}
+   generationConfig:{temperature:0.4}
   };
  }else{
   headers.Authorization="Bearer "+AI_API_KEY;
