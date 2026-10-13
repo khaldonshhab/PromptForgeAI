@@ -210,7 +210,7 @@ async function callProvider(system,user){
   payload={
    systemInstruction:{parts:[{text:system}]},
    contents:[{role:"user",parts:[{text:user}]}],
-   generationConfig:{temperature:0.4}
+   generationConfig:{temperature:0.4,thinkingConfig:{thinkingBudget:0}}
   };
  }else{
   headers.Authorization="Bearer "+AI_API_KEY;
@@ -221,7 +221,7 @@ async function callProvider(system,user){
  // Retry transient Gemini 503 responses twice before surfacing the provider error.
  for(let attempt=0;attempt<3;attempt++){
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),60000);
+  const timeout=setTimeout(()=>controller.abort(),22000);
   try{
    r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
    t=await r.text();
