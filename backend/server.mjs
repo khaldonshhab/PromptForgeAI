@@ -217,16 +217,21 @@ async function callProvider(system,user){
   payload={model:AI_MODEL,instructions:system,input:user};
   if(mode==="chat")payload={model:AI_MODEL,messages:[{role:"system",content:system},{role:"user",content:user}]};
  }
- const controller=new AbortController();
- const timeout=setTimeout(()=>controller.abort(),60000);
  let r,t;
- try{
-  r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
-  t=await r.text();
- }catch(e){
-  if(e?.name==="AbortError")throw new Error("provider_timeout");
-  throw new Error("provider_network_error");
- }finally{clearTimeout(timeout);}
+ // Retry transient Gemini 503 responses twice before surfacing the provider error.
+ for(let attempt=0;attempt<3;attempt++){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),60000);
+  try{
+   r=await fetch(endpoint,{method:"POST",headers,body:JSON.stringify(payload),signal:controller.signal});
+   t=await r.text();
+  }catch(e){
+   if(e?.name==="AbortError")throw new Error("provider_timeout");
+   throw new Error("provider_network_error");
+  }finally{clearTimeout(timeout);}
+  if(r.status!==503||attempt===2)break;
+  await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
+ }
  if(!r.ok)throw new Error("provider_http_"+r.status);
  let d;try{d=JSON.parse(t);}catch{throw new Error("provider_invalid_json");}
  const out=extractProviderText(d);
